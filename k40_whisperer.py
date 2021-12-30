@@ -2,7 +2,7 @@
 """
     K40 Whisperer
 
-    Copyright (C) <2017-2021>  <Scorch>
+    Copyright (C) <2017-2019>  <Scorch>
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -17,8 +17,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-version = '0.58'
-title_text = "K40 Whisperer V"+version
+version = '0.42_RU'
+title_text = "K40 Whisperer RU V"+version
 
 import sys
 from math import *
@@ -32,7 +32,6 @@ from g_code_library import G_Code_Rip
 from interpolate import interpolate
 from ecoords import ECoord
 from convex_hull import hull2D
-from embedded_images import K40_Whisperer_Images
 
 import inkex
 import simplestyle
@@ -43,7 +42,6 @@ import traceback
 import struct
 
 DEBUG = False
-
 if DEBUG:
     import inspect
     
@@ -76,6 +74,7 @@ except:
 
 import math
 from time import time
+from time import strftime
 import os
 import re
 import binascii
@@ -102,12 +101,7 @@ try:
 except:
     print("Unable to load Pyclipper library (Offset trace outline will not work without it)")
     PYCLIPPER = False
-
-try:
-    os.chdir(os.path.dirname(__file__))
-except:
-    pass
-
+ 
 QUIET = False
    
 ################################################################################
@@ -191,17 +185,6 @@ class Application(Frame):
         self.master.bind('<Alt-Control-6>'    , self.Move_Arb_Right)
         self.master.bind('<Alt-Control-8>'    , self.Move_Arb_Up)
         self.master.bind('<Alt-Control-Key-2>', self.Move_Arb_Down)
-
-
-        self.master.bind('<Alt-Left>' , self.Move_Arb_Left)
-        self.master.bind('<Alt-Right>', self.Move_Arb_Right)
-        self.master.bind('<Alt-Up>'   , self.Move_Arb_Up)
-        self.master.bind('<Alt-Down>' , self.Move_Arb_Down)
-
-        self.master.bind('<Alt-Key-4>', self.Move_Arb_Left)
-        self.master.bind('<Alt-6>'    , self.Move_Arb_Right)
-        self.master.bind('<Alt-8>'    , self.Move_Arb_Up)
-        self.master.bind('<Alt-Key-2>', self.Move_Arb_Down)
 
         #####
         self.master.bind('<Control-i>' , self.Initialize_Laser)
@@ -409,7 +392,6 @@ class Application(Frame):
         self.laserX    = 0.0
         self.laserY    = 0.0
         self.PlotScale = 1.0
-        self.GUI_Disabled = False
 
         # PAN and ZOOM STUFF
         self.panx = 0
@@ -501,44 +483,44 @@ class Application(Frame):
         self.NormalColor =  self.Entry_Vcut_feed.cget('bg')
 
         # Buttons
-        self.Reng_Button  = Button(self.master,text="Raster Engrave", command=self.Raster_Eng)
-        self.Veng_Button  = Button(self.master,text="Vector Engrave", command=self.Vector_Eng)
-        self.Vcut_Button  = Button(self.master,text="Vector Cut"    , command=self.Vector_Cut)
-        self.Grun_Button  = Button(self.master,text="Run G-Code"    , command=self.Gcode_Cut)
+        self.Reng_Button  = Button(self.master,text="Растровая грав.", command=self.Raster_Eng)
+        self.Veng_Button  = Button(self.master,text="Векторная грав.", command=self.Vector_Eng)
+        self.Vcut_Button  = Button(self.master,text="Векторный рез"    , command=self.Vector_Cut)
+        self.Grun_Button  = Button(self.master,text="Запустить G-Code"    , command=self.Gcode_Cut)
 
 
-        self.Reng_Veng_Button      = Button(self.master,text="Raster and\nVector Engrave", command=self.Raster_Vector_Eng)
-        self.Veng_Vcut_Button      = Button(self.master,text="Vector Engrave\nand Cut", command=self.Vector_Eng_Cut)
-        self.Reng_Veng_Vcut_Button = Button(self.master,text="Raster Engrave\nVector Engrave\nand\nVector Cut", command=self.Raster_Vector_Cut)
+        self.Reng_Veng_Button      = Button(self.master,text="Растровая и\nвекторная гравировка", command=self.Raster_Vector_Eng)
+        self.Veng_Vcut_Button      = Button(self.master,text="Векторная гравировка\nи рез", command=self.Vector_Eng_Cut)
+        self.Reng_Veng_Vcut_Button = Button(self.master,text="\nВекторная гравировка\nи\nрез", command=self.Raster_Vector_Cut)
         
-        self.Label_Position_Control = Label(self.master,text="Position Controls:", anchor=W)
+        self.Label_Position_Control = Label(self.master,text="Управление позиции:", anchor=W)
         
-        self.Initialize_Button = Button(self.master,text="Initialize Laser Cutter", command=self.Initialize_Laser)
+        self.Initialize_Button = Button(self.master,text="Инициаизировать станок", command=self.Initialize_Laser)
 
-        self.Open_Button       = Button(self.master,text="Open\nDesign File",   command=self.menu_File_Open_Design)
-        self.Reload_Button     = Button(self.master,text="Reload\nDesign File", command=self.menu_Reload_Design)
+        self.Open_Button       = Button(self.master,text="Открыть\nчертёж",   command=self.menu_File_Open_Design)
+        self.Reload_Button     = Button(self.master,text="Перезагрузить\nчертёж", command=self.menu_Reload_Design)
         
-        self.Home_Button       = Button(self.master,text="Home",            command=self.Home)
-        self.UnLock_Button     = Button(self.master,text="Unlock Rail",     command=self.Unlock)
-        self.Stop_Button       = Button(self.master,text="Pause/Stop",      command=self.Stop)
+        self.Home_Button       = Button(self.master,text="Дом",            command=self.Home)
+        self.UnLock_Button     = Button(self.master,text="Разблокировать",     command=self.Unlock)
+        self.Stop_Button       = Button(self.master,text="Пауза/Стоп",      command=self.Stop)
 
-        try:            
-            self.left_image  = PhotoImage(data=K40_Whisperer_Images.left_B64,  format='gif')
-            self.right_image = PhotoImage(data=K40_Whisperer_Images.right_B64, format='gif')
-            self.up_image    = PhotoImage(data=K40_Whisperer_Images.up_B64,    format='gif')
-            self.down_image  = PhotoImage(data=K40_Whisperer_Images.down_B64,  format='gif')
+        try:
+            self.left_image  = self.Imaging_Free(Image.open("left.png"),bg=None)
+            self.right_image = self.Imaging_Free(Image.open("right.png"),bg=None)
+            self.up_image    = self.Imaging_Free(Image.open("up.png"),bg=None)
+            self.down_image  = self.Imaging_Free(Image.open("down.png"),bg=None)
             
             self.Right_Button   = Button(self.master,image=self.right_image, command=self.Move_Right)
             self.Left_Button    = Button(self.master,image=self.left_image,  command=self.Move_Left)
             self.Up_Button      = Button(self.master,image=self.up_image,    command=self.Move_Up)
             self.Down_Button    = Button(self.master,image=self.down_image,  command=self.Move_Down)
 
-            self.UL_image  = PhotoImage(data=K40_Whisperer_Images.UL_B64, format='gif')
-            self.UR_image  = PhotoImage(data=K40_Whisperer_Images.UR_B64, format='gif')
-            self.LR_image  = PhotoImage(data=K40_Whisperer_Images.LR_B64, format='gif')
-            self.LL_image  = PhotoImage(data=K40_Whisperer_Images.LL_B64, format='gif')
-            self.CC_image  = PhotoImage(data=K40_Whisperer_Images.CC_B64, format='gif')
-
+            self.UL_image  = self.Imaging_Free(Image.open("UL.png"),bg=None)
+            self.UR_image  = self.Imaging_Free(Image.open("UR.png"),bg=None)
+            self.LR_image  = self.Imaging_Free(Image.open("LR.png"),bg=None)
+            self.LL_image  = self.Imaging_Free(Image.open("LL.png"),bg=None)
+            self.CC_image  = self.Imaging_Free(Image.open("CC.png"),bg=None)
+            
             self.UL_Button = Button(self.master,image=self.UL_image, command=self.Move_UL)
             self.UR_Button = Button(self.master,image=self.UR_image, command=self.Move_UR)
             self.LR_Button = Button(self.master,image=self.LR_image, command=self.Move_LR)
@@ -557,14 +539,14 @@ class Application(Frame):
             self.LL_Button = Button(self.master,text=" ", command=self.Move_LL)
             self.CC_Button = Button(self.master,text=" ", command=self.Move_CC)
 
-        self.Label_Step   = Label(self.master,text="Jog Step", anchor=CENTER )
+        self.Label_Step   = Label(self.master,text="Шаг", anchor=CENTER )
         self.Label_Step_u = Label(self.master,textvariable=self.units, anchor=W)
         self.Entry_Step   = Entry(self.master,width="15")
         self.Entry_Step.configure(textvariable=self.jog_step, justify='center')
         self.jog_step.trace_variable("w", self.Entry_Step_Callback)
 
         ###########################################################################
-        self.GoTo_Button    = Button(self.master,text="Move To", command=self.GoTo)
+        self.GoTo_Button    = Button(self.master,text="Двигаться на", command=self.GoTo)
         
         self.Entry_GoToX   = Entry(self.master,width="15",justify='center')
         self.Entry_GoToX.configure(textvariable=self.gotoX)
@@ -580,48 +562,48 @@ class Application(Frame):
 
         # Advanced Column     #
         self.separator_vert = Frame(self.master, height=2, bd=1, relief=SUNKEN)
-        self.Label_Advanced_column = Label(self.master,text="Advanced Settings",anchor=CENTER)
+        self.Label_Advanced_column = Label(self.master,text="Расширенные настройки",anchor=CENTER)
         self.separator_adv = Frame(self.master, height=2, bd=1, relief=SUNKEN)       
 
-        self.Label_Halftone_adv = Label(self.master,text="Halftone (Dither)")
+        self.Label_Halftone_adv = Label(self.master,text="Полутона (дизеринг)")
         self.Checkbutton_Halftone_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Halftone_adv.configure(variable=self.halftone)
         self.halftone.trace_variable("w", self.View_Refresh_and_Reset_RasterPath) #self.menu_View_Refresh_Callback
 
-        self.Label_Negate_adv = Label(self.master,text="Invert Raster Color")
+        self.Label_Negate_adv = Label(self.master,text="Инверт. растровый цвет")
         self.Checkbutton_Negate_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Negate_adv.configure(variable=self.negate)
         self.negate.trace_variable("w", self.View_Refresh_and_Reset_RasterPath)
 
         self.separator_adv2 = Frame(self.master, height=2, bd=1, relief=SUNKEN)  
 
-        self.Label_Mirror_adv = Label(self.master,text="Mirror Design")
+        self.Label_Mirror_adv = Label(self.master,text="Отобразить чертёж")
         self.Checkbutton_Mirror_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Mirror_adv.configure(variable=self.mirror)
         self.mirror.trace_variable("w", self.View_Refresh_and_Reset_RasterPath)
 
-        self.Label_Rotate_adv = Label(self.master,text="Rotate Design")
+        self.Label_Rotate_adv = Label(self.master,text="Перевернуть чертёж")
         self.Checkbutton_Rotate_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Rotate_adv.configure(variable=self.rotate)
         self.rotate.trace_variable("w", self.View_Refresh_and_Reset_RasterPath)
 
         self.separator_adv3 = Frame(self.master, height=2, bd=1, relief=SUNKEN)
         
-        self.Label_inputCSYS_adv = Label(self.master,text="Use Input CSYS")
+        self.Label_inputCSYS_adv = Label(self.master,text="Исп. входной CSYS")
         self.Checkbutton_inputCSYS_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_inputCSYS_adv.configure(variable=self.inputCSYS)
         self.inputCSYS.trace_variable("w", self.menu_View_inputCSYS_Refresh_Callback)
 
-        self.Label_Inside_First_adv = Label(self.master,text="Cut Inside First")
+        self.Label_Inside_First_adv = Label(self.master,text="Снач. вырезать изнутри")
         self.Checkbutton_Inside_First_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Inside_First_adv.configure(variable=self.inside_first)
         self.inside_first.trace_variable("w", self.menu_Inside_First_Callback)
 
-        self.Label_Inside_First_adv = Label(self.master,text="Cut Inside First")
+        self.Label_Inside_First_adv = Label(self.master,text="Снач. вырезать изнутри")
         self.Checkbutton_Inside_First_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Inside_First_adv.configure(variable=self.inside_first)
 
-        self.Label_Rotary_Enable_adv = Label(self.master,text="Use Rotary Settings")
+        self.Label_Rotary_Enable_adv = Label(self.master,text="Исп. пово. настройки")
         self.Checkbutton_Rotary_Enable_adv = Checkbutton(self.master,text="")
         self.Checkbutton_Rotary_Enable_adv.configure(variable=self.rotary)
         self.rotary.trace_variable("w", self.Reset_RasterPath_and_Update_Time)
@@ -630,46 +612,46 @@ class Application(Frame):
         #####
         self.separator_comb = Frame(self.master, height=2, bd=1, relief=SUNKEN)  
 
-        self.Label_Comb_Engrave_adv = Label(self.master,text="Group Engrave Tasks")
+        self.Label_Comb_Engrave_adv = Label(self.master,text="Задачи групповой грав.")
         self.Checkbutton_Comb_Engrave_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Comb_Engrave_adv.configure(variable=self.comb_engrave)
         self.comb_engrave.trace_variable("w", self.menu_View_Refresh_Callback)
 
-        self.Label_Comb_Vector_adv = Label(self.master,text="Group Vector Tasks")
+        self.Label_Comb_Vector_adv = Label(self.master,text="Групп. векторные задачи")
         self.Checkbutton_Comb_Vector_adv = Checkbutton(self.master,text=" ", anchor=W)
         self.Checkbutton_Comb_Vector_adv.configure(variable=self.comb_vector)
         self.comb_vector.trace_variable("w", self.menu_View_Refresh_Callback) 
         #####
         
-        self.Label_Reng_passes = Label(self.master,text="Raster Eng. Passes")
+        self.Label_Reng_passes = Label(self.master,text="Растровая грав. проходит")
         self.Entry_Reng_passes   = Entry(self.master,width="15")
         self.Entry_Reng_passes.configure(textvariable=self.Reng_passes,justify='center',fg="black")
         self.Reng_passes.trace_variable("w", self.Entry_Reng_passes_Callback)
         self.NormalColor =  self.Entry_Reng_passes.cget('bg')
 
-        self.Label_Veng_passes = Label(self.master,text="Vector Eng. Passes")
+        self.Label_Veng_passes = Label(self.master,text="Векторная грав. проходит")
         self.Entry_Veng_passes   = Entry(self.master,width="15")
         self.Entry_Veng_passes.configure(textvariable=self.Veng_passes,justify='center',fg="blue")
         self.Veng_passes.trace_variable("w", self.Entry_Veng_passes_Callback)
         self.NormalColor =  self.Entry_Veng_passes.cget('bg')
 
-        self.Label_Vcut_passes = Label(self.master,text="Vector Cut Passes")
+        self.Label_Vcut_passes = Label(self.master,text="Векторный рез проходит")
         self.Entry_Vcut_passes   = Entry(self.master,width="15")
         self.Entry_Vcut_passes.configure(textvariable=self.Vcut_passes,justify='center',fg="red")
         self.Vcut_passes.trace_variable("w", self.Entry_Vcut_passes_Callback)
         self.NormalColor =  self.Entry_Vcut_passes.cget('bg')
 
-        self.Label_Gcde_passes = Label(self.master,text="G-Code Passes")
+        self.Label_Gcde_passes = Label(self.master,text="G-Code проходит")
         self.Entry_Gcde_passes   = Entry(self.master,width="15")
         self.Entry_Gcde_passes.configure(textvariable=self.Gcde_passes,justify='center',fg="black")
         self.Gcde_passes.trace_variable("w", self.Entry_Gcde_passes_Callback)
         self.NormalColor =  self.Entry_Gcde_passes.cget('bg')
 
         
-        self.Hide_Adv_Button = Button(self.master,text="Hide Advanced", command=self.Hide_Advanced)
+        self.Hide_Adv_Button = Button(self.master,text="Скрыть расширеные", command=self.Hide_Advanced)
                 
         # End Right Column #
-        self.calc_button = Button(self.master,text="Calculate Raster Time", command=self.menu_Calc_Raster_Time)
+        self.calc_button = Button(self.master,text="Рассчитать время растра", command=self.menu_Calc_Raster_Time)
 
         #GEN Setting Window Entry initializations
         self.Entry_Sspeed    = Entry()
@@ -683,68 +665,68 @@ class Application(Frame):
 
 
         top_File = Menu(self.menuBar, tearoff=0)
-        top_File.add("command", label = "Save Settings File", command = self.menu_File_Save)
-        top_File.add("command", label = "Read Settings File", command = self.menu_File_Open_Settings_File)
+        top_File.add("command", label = "Сохранить файл настроек", command = self.menu_File_Save)
+        top_File.add("command", label = "Прочитать файл настроек", command = self.menu_File_Open_Settings_File)
 
         top_File.add_separator()
-        top_File.add("command", label = "Open Design (SVG/DXF/G-Code)"  , command = self.menu_File_Open_Design)
-        top_File.add("command", label = "Reload Design"          , command = self.menu_Reload_Design)
+        top_File.add("command", label = "Открыть чертёж (SVG/DXF/G-Code)"  , command = self.menu_File_Open_Design)
+        top_File.add("command", label = "Перезагрузить чертёж"          , command = self.menu_Reload_Design)
 
         top_File.add_separator()    
-        top_File.add("command", label = "Send EGV File to Laser"             , command = self.menu_File_Open_EGV)
+        top_File.add("command", label = "Отправить EGV файл на станок"             , command = self.menu_File_Open_EGV)
 
         SaveEGVmenu = Menu(self.master, relief = "raised", bd=2, tearoff=0)
-        top_File.add_cascade(label="Save EGV File", menu=SaveEGVmenu)        
-        SaveEGVmenu.add("command", label = "Raster Engrave"     , command = self.menu_File_Raster_Engrave)
-        SaveEGVmenu.add("command", label = "Vector Engrave"     , command = self.menu_File_Vector_Engrave)
-        SaveEGVmenu.add("command", label = "Vector Cut"         , command = self.menu_File_Vector_Cut)
-        SaveEGVmenu.add("command", label = "G-Code Operations"  , command = self.menu_File_G_Code)
+        top_File.add_cascade(label="Сохранить файл EGV", menu=SaveEGVmenu)        
+        SaveEGVmenu.add("command", label = "Растровая гравировка"     , command = self.menu_File_Raster_Engrave)
+        SaveEGVmenu.add("command", label = "Векторная гравировка"     , command = self.menu_File_Vector_Engrave)
+        SaveEGVmenu.add("command", label = "Векторный рез"         , command = self.menu_File_Vector_Cut)
+        SaveEGVmenu.add("command", label = "Операции G-Code"  , command = self.menu_File_G_Code)
         SaveEGVmenu.add_separator()   
-        SaveEGVmenu.add("command", label = "Raster and Vector Engrave"             , command = self.menu_File_Raster_Vector_Engrave)
-        SaveEGVmenu.add("command", label = "Vector Engrave and Cut"                , command = self.menu_File_Vector_Engrave_Cut)
-        SaveEGVmenu.add("command", label = "Raster, Vector Engrave and Vector Cut" , command = self.menu_File_Raster_Vector_Cut)
+        SaveEGVmenu.add("command", label = "Растровая и векторная гравировка"             , command = self.menu_File_Raster_Vector_Engrave)
+        SaveEGVmenu.add("command", label = "Векторная гравировка и рез"                , command = self.menu_File_Vector_Engrave_Cut)
+        SaveEGVmenu.add("command", label = "Растровая, векторная гравировка и векторный рез" , command = self.menu_File_Raster_Vector_Cut)
         
     
         top_File.add_separator()
-        top_File.add("command", label = "Exit"              , command = self.menu_File_Quit)
+        top_File.add("command", label = "Выход"              , command = self.menu_File_Quit)
         
-        self.menuBar.add("cascade", label="File", menu=top_File)
+        self.menuBar.add("cascade", label="Файл", menu=top_File)
 
         #top_Edit = Menu(self.menuBar, tearoff=0)
         #self.menuBar.add("cascade", label="Edit", menu=top_Edit)
 
         top_View = Menu(self.menuBar, tearoff=0)
-        top_View.add("command", label = "Refresh   <F5>", command = self.menu_View_Refresh)
+        top_View.add("command", label = "Обновить   <F5>", command = self.menu_View_Refresh)
         top_View.add_separator()
-        top_View.add_checkbutton(label = "Show Raster Image"  ,  variable=self.include_Reng ,command= self.menu_View_Refresh)
+        top_View.add_checkbutton(label = "Показать растровое изображение"  ,  variable=self.include_Reng ,command= self.menu_View_Refresh)
         if DEBUG:
-            top_View.add_checkbutton(label = "Show Raster Paths" ,variable=self.include_Rpth ,command= self.menu_View_Refresh)
+            top_View.add_checkbutton(label = "Показать пути растра" ,variable=self.include_Rpth ,command= self.menu_View_Refresh)
         
-        top_View.add_checkbutton(label = "Show Vector Engrave",   variable=self.include_Veng ,command= self.menu_View_Refresh)
-        top_View.add_checkbutton(label = "Show Vector Cut"    ,   variable=self.include_Vcut ,command= self.menu_View_Refresh)
-        top_View.add_checkbutton(label = "Show G-Code Paths"  ,   variable=self.include_Gcde ,command= self.menu_View_Refresh)
+        top_View.add_checkbutton(label = "Показать векторную гравировку",   variable=self.include_Veng ,command= self.menu_View_Refresh)
+        top_View.add_checkbutton(label = "Показать векторный рез"    ,   variable=self.include_Vcut ,command= self.menu_View_Refresh)
+        top_View.add_checkbutton(label = "Показывать G-Code Пути"  ,   variable=self.include_Gcde ,command= self.menu_View_Refresh)
         top_View.add_separator()
-        top_View.add_checkbutton(label = "Show Time Estimates",   variable=self.include_Time ,command= self.menu_View_Refresh)
-        top_View.add_checkbutton(label = "Zoom to Design Size",   variable=self.zoom2image   ,command= self.menu_View_Refresh)
+        top_View.add_checkbutton(label = "Показать оценки времени",   variable=self.include_Time ,command= self.menu_View_Refresh)
+        top_View.add_checkbutton(label = "Увеличить до размера дизайна",   variable=self.zoom2image   ,command= self.menu_View_Refresh)
 
         #top_View.add_separator()
         #top_View.add("command", label = "computeAccurateReng",command= self.computeAccurateReng)
         #top_View.add("command", label = "computeAccurateVeng",command= self.computeAccurateVeng)
         #top_View.add("command", label = "computeAccurateVcut",command= self.computeAccurateVcut)
 
-        self.menuBar.add("cascade", label="View", menu=top_View)
+        self.menuBar.add("cascade", label="Вид", menu=top_View)
 
         top_Tools = Menu(self.menuBar, tearoff=0)
-        self.menuBar.add("cascade", label="Tools", menu=top_Tools)
+        self.menuBar.add("cascade", label="Инструменты", menu=top_Tools)
         USBmenu = Menu(self.master, relief = "raised", bd=2, tearoff=0)
           
-        top_Tools.add("command", label = "Calculate Raster Time", command = self.menu_Calc_Raster_Time)
-        top_Tools.add("command", label = "Trace Design Boundary <Ctrl-t>", command = self.TRACE_Settings_Window)
+        top_Tools.add("command", label = "Рассчитать время растра", command = self.menu_Calc_Raster_Time)
+        top_Tools.add("command", label = "Граница проектирования трассировки <Ctrl-T>", command = self.TRACE_Settings_Window)
         top_Tools.add_separator()
-        top_Tools.add("command", label = "Initialize Laser <Ctrl-i>", command = self.Initialize_Laser)
+        top_Tools.add("command", label = "Инициализировать станок <Ctrl-I>", command = self.Initialize_Laser)
         top_Tools.add_cascade(label="USB", menu=USBmenu)
-        USBmenu.add("command", label = "Reset USB", command = self.Reset)
-        USBmenu.add("command", label = "Release USB", command = self.Release_USB)
+        USBmenu.add("command", label = "Перезагрузить USB", command = self.Reset)
+        USBmenu.add("command", label = "Отключить USB", command = self.Release_USB)
 
                     
 
@@ -756,19 +738,19 @@ class Application(Frame):
         
 
         top_Settings = Menu(self.menuBar, tearoff=0)
-        top_Settings.add("command", label = "General Settings <F2>", command = self.GEN_Settings_Window)
-        top_Settings.add("command", label = "Raster Settings <F3>",  command = self.RASTER_Settings_Window)
-        top_Settings.add("command", label = "Rotary Settings <F4>",  command = self.ROTARY_Settings_Window)
+        top_Settings.add("command", label = "Основные настройки <F2>", command = self.GEN_Settings_Window)
+        top_Settings.add("command", label = "Настройки растра <F3>",  command = self.RASTER_Settings_Window)
+        top_Settings.add("command", label = "Поворотные настройки <F4>",  command = self.ROTARY_Settings_Window)
         top_Settings.add_separator()
-        top_Settings.add_checkbutton(label = "Advanced Settings <F6>", variable=self.advanced ,command= self.menu_View_Refresh)
+        top_Settings.add_checkbutton(label = "Расширенные настройки <F6>", variable=self.advanced ,command= self.menu_View_Refresh)
         
-        self.menuBar.add("cascade", label="Settings", menu=top_Settings)
+        self.menuBar.add("cascade", label="Настройки", menu=top_Settings)
         
         top_Help = Menu(self.menuBar, tearoff=0)
-        top_Help.add("command", label = "About (e-mail)", command = self.menu_Help_About)
-        top_Help.add("command", label = "K40 Whisperer Web Page", command = self.menu_Help_Web)
-        top_Help.add("command", label = "Manual (Web Page)", command = self.menu_Help_Manual)
-        self.menuBar.add("cascade", label="Help", menu=top_Help)
+        top_Help.add("command", label = "О приложении", command = self.menu_Help_About)
+        top_Help.add("command", label = "Сайт K40 Whisperer", command = self.menu_Help_Web)
+        #top_Help.add("command", label = "Manual (Web Page)", command = self.menu_Help_Manual)
+        self.menuBar.add("cascade", label="Помощь", menu=top_Help)
 
         self.master.config(menu=self.menuBar)
 
@@ -807,14 +789,14 @@ class Application(Frame):
             try:
                 self.statusbar.configure( bg = 'yellow' )
                 val2.configure( bg = 'yellow' )
-                self.statusMessage.set(" Recalculation required.")
+                self.statusMessage.set(" Требуется пересчет.")
             except:
                 pass
         elif calc_flag == 3:
             try:
                 val2.configure( bg = 'red' )
                 self.statusbar.configure( bg = 'red' )
-                self.statusMessage.set(" Value should be a number. ")
+                self.statusMessage.set(" Значение должно быть числом. ")
             except:
                 pass
         elif calc_flag == 2:
@@ -858,7 +840,7 @@ class Application(Frame):
             except:
                 pass
 
-            if not message_ask_ok_cancel("Replace", "Replace Exiting Configuration File?\n"+configname_full):
+            if not message_ask_ok_cancel("Замена", "Заменить закрывающийся файл конфигурации?\n"+configname_full):
                 try:
                     win_id.deiconify()
                 except:
@@ -867,7 +849,7 @@ class Application(Frame):
         try:
             fout = open(configname_full,'w')
         except:
-            self.statusMessage.set("Unable to open file for writing: %s" %(configname_full))
+            self.statusMessage.set("Невозможно открыть файл для записи: %s" %(configname_full))
             self.statusbar.configure( bg = 'red' )
             return
         for line in config_data:
@@ -876,7 +858,7 @@ class Application(Frame):
             except:
                 fout.write('(skipping line)\n')
         fout.close
-        self.statusMessage.set("Configuration File Saved: %s" %(configname_full))
+        self.statusMessage.set("Файл конфигурации сохранён: %s" %(configname_full))
         self.statusbar.configure( bg = 'white' )
         try:
             win_id.deiconify()
@@ -887,7 +869,7 @@ class Application(Frame):
     def WriteConfig(self):
         global Zero
         header = []
-        header.append('( K40 Whisperer Settings: '+version+' )')
+        header.append('( Настройки K40 Whisperer RU: '+version+' )')
         header.append('( by Scorch - 2019 )')
         header.append("(=========================================================)")
         # BOOL
@@ -978,7 +960,7 @@ class Application(Frame):
         ######################################################
 
     def Quit_Click(self, event):
-        self.statusMessage.set("Exiting!")
+        self.statusMessage.set("Закрытие!")
         self.Release_USB
         root.destroy()
 
@@ -1042,6 +1024,8 @@ class Application(Frame):
         
         dx = can_dx*self.PlotScale
         dy = can_dy*self.PlotScale
+        if self.HomeUR.get():
+            dx = -dx
             
         DX =  round(dx*1000)
         DY =  round(dy*1000)
@@ -1189,10 +1173,10 @@ class Application(Frame):
             
         Gcode_time =  self.GcodeData.gcode_time * Gcode_passes
 
-        self.Reng_time.set("Raster Engrave: %s" %(self.format_time(Reng_time)))  
-        self.Veng_time.set("Vector Engrave: %s" %(self.format_time(Veng_time)))
-        self.Vcut_time.set("    Vector Cut: %s" %(self.format_time(Vcut_time)))
-        self.Gcde_time.set("         Gcode: %s" %(self.format_time(Gcode_time)))
+        self.Reng_time.set("Растровая гравировка: %s" %(self.format_time(Reng_time)))  
+        self.Veng_time.set("Векторная гравировка: %s" %(self.format_time(Veng_time)))
+        self.Vcut_time.set("       Векторный рез: %s" %(self.format_time(Vcut_time)))
+        self.Gcde_time.set("               Gcode: %s" %(self.format_time(Gcode_time)))
         
         ##########################################
         cszw = int(self.PreviewCanvas.cget("width"))
@@ -1245,7 +1229,7 @@ class Application(Frame):
             vfactor=(25.4/60.0)/self.feed_factor()
             low_limit = self.min_raster_speed*vfactor
             if  value < low_limit:
-                self.statusMessage.set(" Feed Rate should be greater than or equal to %f " %(low_limit))
+                self.statusMessage.set(" Скорость подачи должна быть больше или равна %f " %(low_limit))
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1260,7 +1244,7 @@ class Application(Frame):
             vfactor=(25.4/60.0)/self.feed_factor()
             low_limit = self.min_vector_speed*vfactor
             if  value < low_limit:
-                self.statusMessage.set(" Feed Rate should be greater than or equal to %f " %(low_limit))
+                self.statusMessage.set(" Скорость подачи должна быть больше или равна %f " %(low_limit))
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1275,7 +1259,7 @@ class Application(Frame):
             vfactor=(25.4/60.0)/self.feed_factor()
             low_limit = self.min_vector_speed*vfactor
             if  value < low_limit:
-                self.statusMessage.set(" Feed Rate should be greater than or equal to %f " %(low_limit))
+                self.statusMessage.set(" Скорость подачи должна быть больше или равна %f " %(low_limit))
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1289,7 +1273,7 @@ class Application(Frame):
         try:
             value = float(self.jog_step.get())
             if  value <= 0.0:
-                self.statusMessage.set(" Step should be greater than 0.0 ")
+                self.statusMessage.set(" Шаг должен быть больше 0,0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1303,10 +1287,10 @@ class Application(Frame):
         try:
             value = float(self.gotoX.get())
             if  (value < 0.0) and (not self.HomeUR.get()):
-                self.statusMessage.set(" Value should be greater than 0.0 ")
+                self.statusMessage.set(" Значение должно быть больше 0,0 ")
                 return 2 # Value is invalid number
             elif (value > 0.0) and self.HomeUR.get():
-                self.statusMessage.set(" Value should be less than 0.0 ")
+                self.statusMessage.set(" Значение должно быть меньше 0,0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1319,7 +1303,7 @@ class Application(Frame):
         try:
             value = float(self.gotoY.get())
             if  value > 0.0:
-                self.statusMessage.set(" Value should be less than 0.0 ")
+                self.statusMessage.set(" Значение должно быть меньше 0,0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1332,7 +1316,7 @@ class Application(Frame):
         try:
             value = self.get_raster_step_1000in()
             if  value <= 0 or value > 63:
-                self.statusMessage.set(" Step should be between 0.001 and 0.063 in")
+                self.statusMessage.set(" Шаг должен быть от 0,001 до 0,063 дюйма.")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1412,7 +1396,7 @@ class Application(Frame):
         for i in range(0,num):
             self.BezierCanvas.create_line( 5+x[i],260-y[i],5+x[i+1],260-y[i+1],fill="black", \
                                            capstyle="round", width = 2, tags='bez')
-        self.BezierCanvas.create_text(128, 0, text="Output Level vs. Input Level",anchor="n", tags='bez')
+        self.BezierCanvas.create_text(128, 0, text="Вых. уровень в зависимости от входного",anchor="n", tags='bez')
 
 
     #############################
@@ -1420,7 +1404,7 @@ class Application(Frame):
         try:
             value = float(self.ink_timeout.get())
             if  value < 0.0:
-                self.statusMessage.set(" Timeout should be 0 or greater")
+                self.statusMessage.set(" Тайм-аут должен быть 0 или больше ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1434,7 +1418,7 @@ class Application(Frame):
         try:
             value = float(self.t_timeout.get())
             if  value <= 0.0:
-                self.statusMessage.set(" Timeout should be greater than 0 ")
+                self.statusMessage.set(" Тайм-аут должен быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1447,7 +1431,7 @@ class Application(Frame):
         try:
             value = float(self.n_timeouts.get())
             if  value <= 0.0:
-                self.statusMessage.set(" N_Timeouts should be greater than 0 ")
+                self.statusMessage.set(" N_Timeouts должно быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1460,7 +1444,7 @@ class Application(Frame):
         try:
             value = int(self.n_egv_passes.get())
             if  value < 1:
-                self.statusMessage.set(" EGV passes should be 1 or higher")
+                self.statusMessage.set(" Пропуск EGV должен быть 1 или выше.")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1473,7 +1457,7 @@ class Application(Frame):
         try:
             value = float(self.LaserXsize.get())
             if  value <= 0.0:
-                self.statusMessage.set(" Width should be greater than 0 ")
+                self.statusMessage.set(" Ширина должна быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1486,7 +1470,7 @@ class Application(Frame):
         try:
             value = float(self.LaserYsize.get())
             if  value <= 0.0:
-                self.statusMessage.set(" Height should be greater than 0 ")
+                self.statusMessage.set(" Высота должна быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1500,7 +1484,7 @@ class Application(Frame):
         try:
             value = float(self.LaserXscale.get())
             if  value <= 0.0:
-                self.statusMessage.set(" X scale factor should be greater than 0 ")
+                self.statusMessage.set(" Коэффициент масштабирования по оси X должен быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1513,7 +1497,7 @@ class Application(Frame):
         try:
             value = float(self.LaserYscale.get())
             if  value <= 0.0:
-                self.statusMessage.set(" Y scale factor should be greater than 0 ")
+                self.statusMessage.set(" Масштабный коэффициент Y должен быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1527,7 +1511,7 @@ class Application(Frame):
         try:
             value = float(self.LaserRscale.get())
             if  value <= 0.0:
-                self.statusMessage.set(" Rotary scale factor should be greater than 0 ")
+                self.statusMessage.set(" Масштабный коэффициент вращения должен быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1543,7 +1527,7 @@ class Application(Frame):
             vfactor=(25.4/60.0)/self.feed_factor()
             low_limit = 1.0*vfactor
             if  value !=0 and value < low_limit:
-                self.statusMessage.set(" Rapid feed should be greater than or equal to %f (or 0 for default speed) " %(low_limit))
+                self.statusMessage.set(" Ускоренная подача должна быть больше или равна %f (или 0 для скорости по умолчанию) " %(low_limit))
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1557,7 +1541,7 @@ class Application(Frame):
         try:
             value = int(self.Reng_passes.get())
             if  value < 1:
-                self.statusMessage.set(" Number of passes should be greater than 0 ")
+                self.statusMessage.set(" Количество проходов должно быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1570,7 +1554,7 @@ class Application(Frame):
         try:
             value = int(self.Veng_passes.get())
             if  value < 1:
-                self.statusMessage.set(" Number of passes should be greater than 0 ")
+                self.statusMessage.set(" Количество проходов должно быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1583,7 +1567,7 @@ class Application(Frame):
         try:
             value = int(self.Vcut_passes.get())
             if  value < 1:
-                self.statusMessage.set(" Number of passes should be greater than 0 ")
+                self.statusMessage.set(" Количество проходов должно быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1597,7 +1581,7 @@ class Application(Frame):
         try:
             value = int(self.Gcde_passes.get())
             if  value < 1:
-                self.statusMessage.set(" Number of passes should be greater than 0 ")
+                self.statusMessage.set(" Количество проходов должно быть больше 0 ")
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1626,7 +1610,7 @@ class Application(Frame):
             vfactor=(25.4/60.0)/self.feed_factor()
             low_limit = self.min_vector_speed*vfactor
             if  value < low_limit:
-                self.statusMessage.set(" Feed Rate should be greater than or equal to %f " %(low_limit))
+                self.statusMessage.set(" Скорость подачи должна быть больше или равна %f " %(low_limit))
                 return 2 # Value is invalid number
         except:
             return 3     # Value not a number
@@ -1639,8 +1623,8 @@ class Application(Frame):
     def Inkscape_Path_Click(self, event):
         self.Inkscape_Path_Message()
         win_id=self.grab_current()
-        newfontdir = askopenfilename(filetypes=[("Executable Files",("inkscape.exe","*inkscape*")),\
-                                                ("All Files","*")],\
+        newfontdir = askopenfilename(filetypes=[("Исполняемые файлы",("inkscape.exe","*inkscape*")),\
+                                                ("Все файлы","*")],\
                                                  initialdir=self.inkscape_path.get())
         if newfontdir != "" and newfontdir != ():
             if type(newfontdir) is not str:
@@ -1656,9 +1640,9 @@ class Application(Frame):
     def Inkscape_Path_Message(self, event=None):
         if self.inkscape_warning == False:
             self.inkscape_warning = True
-            msg1 = "Beware:"
-            msg2 = "Most people should leave the 'Inkscape Executable' entry field blank. "
-            msg3 = "K40 Whisperer will find Inkscape in one of the the standard locations after you install Inkscape."
+            msg1 = "Остерегаться:"
+            msg2 = "Большинство людей должны оставить поле ввода «Исполняемый файл Inkscape» пустым. "
+            msg3 = "K40 Whisperer найдет Inkscape в одном из стандартных мест после установки Inkscape."
             message_box(msg1, msg2+msg3)
             
             
@@ -1702,16 +1686,14 @@ class Application(Frame):
         init_dir = os.path.dirname(self.DESIGN_FILE)
         if ( not os.path.isdir(init_dir) ):
             init_dir = self.HOME_DIR
-        fileselect = askopenfilename(filetypes=[("Settings Files","*.txt"),\
-                                                ("All Files","*")],\
+        fileselect = askopenfilename(filetypes=[("Файл настроек","*.txt"),\
+                                                ("Все файлы","*")],\
                                                  initialdir=init_dir)
         if fileselect != '' and fileselect != ():
             self.Open_Settings_File(fileselect)
 
 
     def menu_Reload_Design(self,event=None):
-        if self.GUI_Disabled:
-            return
         file_full = self.DESIGN_FILE
         file_name = os.path.basename(file_full)
         if ( os.path.isfile(file_full) ):
@@ -1721,7 +1703,7 @@ class Application(Frame):
         elif ( os.path.isfile( self.HOME_DIR+"/"+file_name ) ):
             filename = self.HOME_DIR+"/"+file_name
         else:
-            self.statusMessage.set("file not found: %s" %(os.path.basename(file_full)) )
+            self.statusMessage.set("Файл не найден: %s" %(os.path.basename(file_full)) )
             self.statusbar.configure( bg = 'red' ) 
             return
         
@@ -1740,28 +1722,15 @@ class Application(Frame):
         
 
     def menu_File_Open_Design(self,event=None):
-        if self.GUI_Disabled:
-            return
         init_dir = os.path.dirname(self.DESIGN_FILE)
         if ( not os.path.isdir(init_dir) ):
             init_dir = self.HOME_DIR
 
-        design_types = ("Design Files", ("*.svg","*.dxf"))
-        gcode_types  = ("G-Code Files", ("*.ngc","*.gcode","*.g","*.tap"))
-        
-        Name, fileExtension = os.path.splitext(self.DESIGN_FILE)
-        TYPE=fileExtension.upper()
-        if TYPE != '.DXF' and TYPE!='.SVG' and TYPE!='.EGV' and TYPE!='':
-            default_types = gcode_types
-        else:
-            default_types = design_types
-        
-        fileselect = askopenfilename(filetypes=[default_types,
-                                            ("G-Code Files ", ("*.ngc","*.gcode","*.g","*.tap")),\
-                                            ("DXF Files ","*.dxf"),\
-                                            ("SVG Files ","*.svg"),\
-                                            ("All Files ","*"),\
-                                            ("Design Files ", ("*.svg","*.dxf"))],\
+        fileselect = askopenfilename(filetypes=[("Файлы дизайна", ("*.svg","*.dxf")),
+                                            ("Файлы G-кода", ("*.ngc","*.gcode","*.g","*.tap")),\
+                                            ("Файлы DXF","*.dxf"),\
+                                            ("Файлы SVG","*.svg"),\
+                                            ("Все файлы","*")],\
                                             initialdir=init_dir)
 
         if fileselect == () or (not os.path.isfile(fileselect)):
@@ -1822,7 +1791,7 @@ class Application(Frame):
         init_file=os.path.basename(fileName)
 
         filename = asksaveasfilename(defaultextension='.EGV', \
-                                     filetypes=[("EGV File","*.EGV")],\
+                                     filetypes=[("Файлы EGV","*.EGV")],\
                                      initialdir=init_dir,\
                                      initialfile= init_file )
         
@@ -1832,7 +1801,7 @@ class Application(Frame):
                 self.make_raster_coords()
             else:
                 self.statusbar.configure( bg = 'yellow' )
-                self.statusMessage.set("No raster data to engrave")
+                self.statusMessage.set("Нет растровых данных для гравировки")
                 
             self.send_data(operation_type=operation_type, output_filename=filename)
             self.EGV_FILE = filename
@@ -1843,19 +1812,22 @@ class Application(Frame):
 
 
     def menu_File_Open_EGV(self):
+        self.stop[0]=False
         init_dir = os.path.dirname(self.DESIGN_FILE)
         if ( not os.path.isdir(init_dir) ):
             init_dir = self.HOME_DIR
-        fileselect = askopenfilename(filetypes=[("Engraver Files", ("*.egv","*.EGV")),\
-                                                    ("All Files","*")],\
+        fileselect = askopenfilename(filetypes=[("Файлы гравера", ("*.egv","*.EGV")),\
+                                                    ("Все файлы","*")],\
                                                      initialdir=init_dir)
         if fileselect != '' and fileselect != ():
             self.resetPath()
             self.DESIGN_FILE = fileselect
             self.EGV_Send_Window(fileselect)
+        self.stop[0]=True
+        #self.Finish_Job()
         
     def Open_EGV(self,filemname,n_passes=1):
-        self.stop[0]=False
+        pass
         EGV_data=[]
         value1 = ""
         value2 = ""
@@ -1916,15 +1888,15 @@ class Application(Frame):
         try:
             self.send_egv_data(EGV_data,n_passes)
         except MemoryError as e:
-            msg1 = "Memory Error:"
-            msg2 = "Memory Error:  Out of Memory."
+            msg1 = "Ошибка памяти:"
+            msg2 = "Ошибка памяти:  Недостаточно памяти."
             self.statusMessage.set(msg2)
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
             
         except Exception as e:
-            msg1 = "Sending Data Stopped: "
+            msg1 = "Отправка данных остановлена: "
             msg2 = "%s" %(e)
             if msg2 == "":
                 formatted_lines = traceback.format_exc().splitlines()
@@ -1937,7 +1909,42 @@ class Application(Frame):
         dxmils = -(x_end_mils - x_start_mils)
         dymils =   y_end_mils - y_start_mils
         self.Send_Rapid_Move(dxmils,dxmils)
-        self.stop[0]=True
+
+
+    def magic_fields(self,svg_reader):
+        """Process the XML data and look for elements with magic IDs"""
+
+        magic_id = "field_magic"
+        label_attr = '{http://www.inkscape.org/namespaces/inkscape}label'
+
+        elements = svg_reader.document.xpath(
+            '//*[starts-with(@id,"{}")]'.format(magic_id))
+
+        for text in elements:
+            # HACK - should actually search for a <tspan>
+            tspan = text.getchildren()[0]
+            if tspan is None:
+                continue
+
+            if label_attr not in text.attrib:
+                continue
+            label = text.attrib[label_attr]
+
+            print("magic_field: id={} label={} orig.text={}".format(
+                text.attrib['id'], label, tspan.text))
+
+            if label == '#yyww':
+                # Use the ISO8601 year/week definitions
+                tspan.text = strftime('%g%V')
+            elif label == '#raster':
+                tspan.text = "{}*{}".format(
+                    self.Reng_passes.get(), self.Reng_feed.get())
+            elif label == '#vector':
+                tspan.text = "{}*{}".format(
+                    self.Veng_passes.get(), self.Veng_feed.get())
+            elif label == '#cut':
+                tspan.text = "{}*{}".format(
+                    self.Vcut_passes.get(), self.Vcut_feed.get())
 
         
     def Open_SVG(self,filemname):
@@ -1955,6 +1962,7 @@ class Application(Frame):
             try:
                 try:
                     svg_reader.parse_svg(self.SVG_FILE)
+                    self.magic_fields(svg_reader)
                     svg_reader.make_paths()
                 except SVG_PXPI_EXCEPTION as e:
                     pxpi_dialog = pxpiDialog(root,
@@ -1970,21 +1978,23 @@ class Application(Frame):
                     
                     dialog_pxpi,dialog_viewbox = pxpi_dialog.result
                     svg_reader.parse_svg(self.SVG_FILE)
+                    self.magic_fields(svg_reader)
                     svg_reader.set_size(dialog_pxpi,dialog_viewbox)
                     svg_reader.make_paths()
                     
             except SVG_TEXT_EXCEPTION as e:
                 svg_reader = SVG_READER()
                 svg_reader.set_inkscape_path(self.inkscape_path.get())
-                self.statusMessage.set("Converting TEXT to PATHS.")
+                self.statusMessage.set("Преобразование ТЕКСТА в ПУТИ (не путю).")
                 self.master.update()
                 svg_reader.parse_svg(self.SVG_FILE)
+                self.magic_fields(svg_reader)
                 if dialog_pxpi != None and dialog_viewbox != None:
                     svg_reader.set_size(dialog_pxpi,dialog_viewbox)
                 svg_reader.make_paths(txt2paths=True)
                 
         except Exception as e:
-            msg1 = "SVG Error: "
+            msg1 = "Ошибка загрузки файла SVG: "
             msg2 = "%s" %(e)
             self.statusMessage.set((msg1+msg2).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
@@ -1992,7 +2002,7 @@ class Application(Frame):
             debug_message(traceback.format_exc())
             return
         except:
-            self.statusMessage.set("Unable To open SVG File: %s" %(filemname))
+            self.statusMessage.set("Невозможно открыть файл SVG: %s" %(filemname))
             debug_message(traceback.format_exc())
             return
         xmax = svg_reader.Xsize/25.4
@@ -2018,20 +2028,20 @@ class Application(Frame):
             self.aspect_ratio =  float(self.wim-1) / float(self.him-1)
             #self.make_raster_coords()
         self.refreshTime()
-        margin=0.0625 # A bit of margin to prevent the warningwindow for designs that are close to being within the bounds
-        if self.Design_bounds[0] > self.VengData.bounds[0]+margin or\
-           self.Design_bounds[0] > self.VcutData.bounds[0]+margin or\
-           self.Design_bounds[1] < self.VengData.bounds[1]-margin or\
-           self.Design_bounds[1] < self.VcutData.bounds[1]-margin or\
-           self.Design_bounds[2] > self.VengData.bounds[2]+margin or\
-           self.Design_bounds[2] > self.VcutData.bounds[2]+margin or\
-           self.Design_bounds[3] < self.VengData.bounds[3]-margin or\
-           self.Design_bounds[3] < self.VcutData.bounds[3]-margin:
-            line1 = "Warning:\n"
-            line2 = "There is vector cut or vector engrave data located outside of the SVG page bounds.\n\n"
-            line3 = "K40 Whisperer will attempt to use all of the vector data.  "
-            line4 = "Please verify that the vector data is not outside of your lasers working area before engraving."
-            message_box("Warning", line1+line2+line3+line4)
+
+        if self.Design_bounds[0] > self.VengData.bounds[0] or\
+           self.Design_bounds[0] > self.VcutData.bounds[0] or\
+           self.Design_bounds[1] < self.VengData.bounds[1] or\
+           self.Design_bounds[1] < self.VcutData.bounds[1] or\
+           self.Design_bounds[2] > self.VengData.bounds[2] or\
+           self.Design_bounds[2] > self.VcutData.bounds[2] or\
+           self.Design_bounds[3] < self.VengData.bounds[3] or\
+           self.Design_bounds[3] < self.VcutData.bounds[3]:
+            line1 = "Предупреждение:\n"
+            line2 = "Имеются данные векторной вырезки или векторной гравировки, расположенные за пределами страницы SVG.\n\n"
+            line3 = "K40 Whisperer попытается использовать все векторные данные.  "
+            line4 = "Перед гравировкой убедитесь, что векторные данные не выходят за пределы рабочей зоны вашего лазера."
+            message_box("Предупреждение", line1+line2+line3+line4)
 
 
     #####################################################################
@@ -2118,10 +2128,10 @@ class Application(Frame):
                     stamp=int(3*time()) #update every 1/3 of a second
                     if (stamp != timestamp):
                         timestamp=stamp #interlock
-                        self.statusMessage.set("Creating Scan Lines: %.1f %%" %( (100.0*i)/him ) )
+                        self.statusMessage.set("Создание линий сканирования: %.1f %%" %( (100.0*i)/him ) )
                         self.master.update()
                     if self.stop[0]==True:
-                        raise Exception("Action stopped by User.")
+                        raise Exception("Действие остановлено пользователем.")
                     line = []
                     cnt=1
                     LEFT  = bignumber;
@@ -2182,15 +2192,15 @@ class Application(Frame):
             self.RengData.hull_coords = hcoords
         
         except MemoryError as e:
-            msg1 = "Memory Error:"
-            msg2 = "Memory Error:  Out of Memory."
+            msg1 = "Ошибка памяти:"
+            msg2 = "Ошибка памяти:  Недостаточно памяти."
             self.statusMessage.set(msg2)
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
             
         except Exception as e:
-            msg1 = "Making Raster Coords Stopped: "
+            msg1 = "Создание координат растра остановлено: "
             msg2 = "%s" %(e)
             self.statusMessage.set((msg1+msg2).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
@@ -2260,52 +2270,17 @@ class Application(Frame):
                 stamp=int(3*time()) #update every 1/3 of a second
                 if (stamp != timestamp):
                     timestamp=stamp #interlock
-                    self.statusMessage.set("Adjusting Image Darkness: %.1f %%" %( (100.0*y)/y_lim ) )
+                    self.statusMessage.set("Регулировка темноты изображения: %.1f %%" %( (100.0*y)/y_lim ) )
                     self.master.update()
                 for x in range(1, x_lim):
                     pixel[x, y] = val_map[ pixel[x, y] ]
 
-        self.statusMessage.set("Creating Halftone Image." )
+        self.statusMessage.set("Создание полутонового изображения." )
         self.master.update()
         image = image.convert('1')
         return image
 
     #######################################################################
-
-    def gcode_error_message(self,message):
-        error_report = Toplevel(width=525,height=60)
-        error_report.title("G-Code Reading Errors/Warnings")
-        error_report.iconname("G-Code Errors")
-        error_report.grab_set()
-        return_value =  StringVar()
-        return_value.set("none")
-
-
-        def Close_Click(event):
-            return_value.set("close")
-            error_report.destroy()
-            
-        #Text Box
-        Error_Frame = Frame(error_report)
-        scrollbar = Scrollbar(Error_Frame, orient=VERTICAL)
-        Error_Text = Text(Error_Frame, width="80", height="20",yscrollcommand=scrollbar.set,bg='white')
-        for line in message:
-            Error_Text.insert(END,line+"\n")
-        scrollbar.config(command=Error_Text.yview)
-        scrollbar.pack(side=RIGHT,fill=Y)
-        #End Text Box
-
-        Button_Frame = Frame(error_report)
-        close_button = Button(Button_Frame,text=" Close ")
-        close_button.bind("<ButtonRelease-1>", Close_Click)
-        close_button.pack(side=RIGHT,fill=X)
-        
-        Error_Text.pack(side=LEFT,fill=BOTH,expand=1)
-        Button_Frame.pack(side=BOTTOM)
-        Error_Frame.pack(side=LEFT,fill=BOTH,expand=1)
-        
-        root.wait_window(error_report)
-        return return_value.get()
 
     def Open_G_Code(self,filename):
         self.resetPath()
@@ -2315,12 +2290,13 @@ class Application(Frame):
             MSG = g_rip.Read_G_Code(filename, XYarc2line = True, arc_angle=2, units="in", Accuracy="")
             Error_Text = ""
             if MSG!=[]:
-                self.gcode_error_message(MSG)
-
+                for line in MSG:
+                    Error_Text = Error_Text + line + "\n"
+                    message_box("Сообщение G-Code", Error_Text)
         #except StandardError as e:
         except Exception as e:
-            msg1 = "G-Code Load Failed:  "
-            msg2 = "Filename: %s" %(filename)
+            msg1 = "Ошибка загрузки G-Code:  "
+            msg2 = "Название файла: %s" %(filename)
             msg3 = "%s" %(e)
             self.statusMessage.set((msg1+msg3).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
@@ -2345,24 +2321,24 @@ class Application(Frame):
             fd.seek(0)
             
             dxf_units = dxf_import.units
-            if dxf_units=="Unitless":
+            if dxf_units=="Безразмерный":
                 d = UnitsDialog(root)
                 dxf_units = d.result
-            if dxf_units=="Inches":
+            if dxf_units=="Дюймы":
                 dxf_scale = 1.0
             elif dxf_units=="Feet":
                 dxf_scale = 12.0
-            elif dxf_units=="Miles":
+            elif dxf_units=="Милли":
                 dxf_scale = 5280.0*12.0
-            elif dxf_units=="Millimeters":
+            elif dxf_units=="Миллиметры":
                 dxf_scale = 1.0/25.4
-            elif dxf_units=="Centimeters":
+            elif dxf_units=="Сантиметры":
                 dxf_scale = 1.0/2.54
-            elif dxf_units=="Meters":
+            elif dxf_units=="Метры":
                 dxf_scale = 1.0/254.0
-            elif dxf_units=="Kilometers":
+            elif dxf_units=="Киллометры":
                 dxf_scale = 1.0/254000.0
-            elif dxf_units=="Microinches":
+            elif dxf_units=="Микродюйм":
                 dxf_scale = 1.0/1000000.0
             elif dxf_units=="Mils":
                 dxf_scale = 1.0/1000.0
@@ -2374,14 +2350,14 @@ class Application(Frame):
             fd.close()
         #except StandardError as e:
         except Exception as e:
-            msg1 = "DXF Load Failed:"
+            msg1 = "Ошибка загрузки DXF:"
             msg2 = "%s" %(e)
             self.statusMessage.set((msg1+msg2).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
         except:
-            fmessage("Unable To open Drawing Exchange File (DXF) file.")
+            fmessage("Невозможно открыть файл файла обмена чертежами (DXF).")
             debug_message(traceback.format_exc())
             return
         
@@ -2409,7 +2385,7 @@ class Application(Frame):
                         msg_line = "%s (%d places)\n" %(msg_split[i-1],mcnt)
                         msg_out = msg_out + msg_line
                     mcnt=1
-            message_box("DXF Import:",msg_out)
+            message_box("Импорт DXF:",msg_out)
                     
         ##########################
         ###   Create ECOORDS   ###
@@ -2428,7 +2404,7 @@ class Application(Frame):
         try:
             fin = open(filename,'r')
         except:
-            fmessage("Unable to open file: %s" %(filename))
+            fmessage("Невозможно открыть файл: %s" %(filename))
             return
         
         text_codes=[]
@@ -2587,7 +2563,7 @@ class Application(Frame):
             if ( os.path.isfile(self.DESIGN_FILE) ):
                 pass
             else:
-                self.statusMessage.set("Image file not found: %s " %(self.DESIGN_FILE))
+                self.statusMessage.set("Файл изображения не найден: %s " %(self.DESIGN_FILE))
 
         if self.units.get() == 'in':
             self.funits.set('in/min')
@@ -2616,7 +2592,7 @@ class Application(Frame):
         init_file=os.path.basename(fileName)
 
         filename = asksaveasfilename(defaultextension='.txt', \
-                                     filetypes=[("Text File","*.txt")],\
+                                     filetypes=[("Текстовый файл","*.txt")],\
                                      initialdir=init_dir,\
                                      initialfile= init_file )
 
@@ -2624,7 +2600,7 @@ class Application(Frame):
             try:
                 fout = open(filename,'w')
             except:
-                self.statusMessage.set("Unable to open file for writing: %s" %(filename))
+                self.statusMessage.set("Невозможно открыть файл для записи: %s" %(filename))
                 self.statusbar.configure( bg = 'red' )
                 return
 
@@ -2632,10 +2608,10 @@ class Application(Frame):
                 try:
                     fout.write(line+'\n')
                 except:
-                    fout.write('(skipping line)\n')
+                    fout.write('(пропуск строки)\n')
                     debug_message(traceback.format_exc())
             fout.close
-            self.statusMessage.set("File Saved: %s" %(filename))
+            self.statusMessage.set("Файл сохранен: %s" %(filename))
             self.statusbar.configure( bg = 'white' )
         
     def Get_Design_Bounds(self):
@@ -2731,8 +2707,6 @@ class Application(Frame):
             pass
 
     def Move_Arbitrary(self,MoveX,MoveY,dummy=None):
-        if self.GUI_Disabled:
-            return
         if self.HomeUR.get():
             DX = -MoveX
         else:
@@ -2743,8 +2717,6 @@ class Application(Frame):
         self.move_head_window_temporary([NewXpos,NewYpos])
 
     def Move_Arb_Step(self,dx,dy):
-        if self.GUI_Disabled:
-            return
         if self.units.get()=="in":
             dx_inches = round(dx*1000)
             dy_inches = round(dy*1000)
@@ -2788,8 +2760,6 @@ class Application(Frame):
         self.Rapid_Move( 0,-JOG_STEP )
 
     def Rapid_Move(self,dx,dy):
-        if self.GUI_Disabled:
-            return
         if self.units.get()=="in":
             dx_inches = round(dx,3)
             dy_inches = round(dy,3)
@@ -2838,7 +2808,7 @@ class Application(Frame):
                 return True
         #except StandardError as e:
         except Exception as e:
-            msg1 = "Rapid Move Failed: "
+            msg1 = "Не удалось выполнить быстрое движение: "
             msg2 = "%s" %(e)
             if msg2 == "":
                 formatted_lines = traceback.format_exc().splitlines()
@@ -2867,17 +2837,16 @@ class Application(Frame):
         return True
 
     def set_gui(self,new_state="normal"):
-        if new_state=="normal":
-            self.GUI_Disabled=False
-        else:
-            self.GUI_Disabled=True
-
+        #if new_state=="normal":
+        #    self.stop[0]=True
+        #else:
+        #    self.stop[0]=False
         try:
-            self.menuBar.entryconfigure("File"    , state=new_state)
-            self.menuBar.entryconfigure("View"    , state=new_state)
-            self.menuBar.entryconfigure("Tools"     , state=new_state)
-            self.menuBar.entryconfigure("Settings", state=new_state)
-            self.menuBar.entryconfigure("Help"    , state=new_state)
+            self.menuBar.entryconfigure("Файл"    , state=new_state)
+            self.menuBar.entryconfigure("Просмотр"    , state=new_state)
+            self.menuBar.entryconfigure("Инструменты"     , state=new_state)
+            self.menuBar.entryconfigure("Настройки", state=new_state)
+            self.menuBar.entryconfigure("Помощь"    , state=new_state)
             self.PreviewCanvas.configure(state=new_state)
             
             for w in self.master.winfo_children():
@@ -2893,122 +2862,166 @@ class Application(Frame):
                 debug_message(traceback.format_exc())
 
     def Vector_Cut(self, output_filename=None):
-        self.Prepare_for_laser_run("Vector Cut: Processing Vector Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Векторный рез: обработка векторных данных.")
+        self.master.update()
         if self.VcutData.ecoords!=[]:
             self.send_data("Vector_Cut", output_filename)
         else:
             self.statusbar.configure( bg = 'yellow' )
-            self.statusMessage.set("No vector data to cut")
+            self.statusMessage.set("Нет векторных данных для вырезания")
         self.Finish_Job()
+        #self.set_gui("normal")
+        #self.stop[0]=True
         
     def Vector_Eng(self, output_filename=None):
-        self.Prepare_for_laser_run("Vector Engrave: Processing Vector Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Векторная гравировка: обработка векторных данных.")
+        self.master.update()
         if self.VengData.ecoords!=[]:
             self.send_data("Vector_Eng", output_filename)
         else:
             self.statusbar.configure( bg = 'yellow' )
-            self.statusMessage.set("No vector data to engrave")
+            self.statusMessage.set("Нет векторных данных для гравировки")
         self.Finish_Job()
+        #self.set_gui("normal")
+        #self.stop[0]=True
 
     def Trace_Eng(self, output_filename=None):
-        self.Prepare_for_laser_run("Boundary Trace: Processing Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Граничная трассировка: обработка данных.")
+        self.master.update()
+
         self.trace_coords = self.make_trace_path()
 
         if self.trace_coords!=[]:
             self.send_data("Trace_Eng", output_filename)
         else:
             self.statusbar.configure( bg = 'yellow' )
-            self.statusMessage.set("No trace data to follow")
+            self.statusMessage.set("Нет данных трассировки для отслеживания")
         self.Finish_Job()
+        #self.set_gui("normal")
+        #self.stop[0]=True
 
     def Raster_Eng(self, output_filename=None):
-        self.Prepare_for_laser_run("Raster Engraving: Processing Image Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Растровая гравировка: обработка данных изображения.")
+        self.master.update()
         try:
             self.make_raster_coords()
             if self.RengData.ecoords!=[]:
                 self.send_data("Raster_Eng", output_filename)
             else:
                 self.statusbar.configure( bg = 'yellow' )
-                self.statusMessage.set("No raster data to engrave")
+                self.statusMessage.set("Нет растровых данных для гравировки")
 
         except MemoryError as e:
-            msg1 = "Memory Error:"
-            msg2 = "Memory Error:  Out of Memory."
+            msg1 = "Ошибка памяти:"
+            msg2 = "Ошибка памяти:  Недостаточно памяти."
             self.statusMessage.set(msg2)
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
             
         except Exception as e:
-            msg1 = "Making Raster Data Stopped: "
+            msg1 = "Остановка растровых данных: "
             msg2 = "%s" %(e)
             self.statusMessage.set((msg1+msg2).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
+        #self.set_gui("normal")
+        #self.stop[0]=True
         self.Finish_Job()
 
     def Raster_Vector_Eng(self, output_filename=None):
-        self.Prepare_for_laser_run("Raster Engraving: Processing Image and Vector Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Растровая гравировка: обработка изображений и векторных данных.")
+        self.master.update()
         try:
             self.make_raster_coords()
             if self.RengData.ecoords!=[] or self.VengData.ecoords!=[]:
                 self.send_data("Raster_Eng+Vector_Eng", output_filename)
             else:
                 self.statusbar.configure( bg = 'yellow' )
-                self.statusMessage.set("No data to engrave")
+                self.statusMessage.set("Нет данных для гравировки")
         except Exception as e:
-            msg1 = "Preparing Data Stopped: "
+            msg1 = "Подготовка данных остановлена: "
             msg2 = "%s" %(e)
             self.statusMessage.set((msg1+msg2).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
         self.Finish_Job()
+        #self.set_gui("normal")
+        #self.stop[0]=True
+
 
     def Vector_Eng_Cut(self, output_filename=None):
-        self.Prepare_for_laser_run("Vector Cut: Processing Vector Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Векторный рез: обработка векторных данных.")
+        self.master.update()
         if self.VcutData.ecoords!=[] or self.VengData.ecoords!=[]:
             self.send_data("Vector_Eng+Vector_Cut", output_filename)
         else:
             self.statusbar.configure( bg = 'yellow' )
-            self.statusMessage.set("No vector data.")
+            self.statusMessage.set("Нет векторных данных.")
         self.Finish_Job()
+        #self.set_gui("normal")
+        #self.stop[0]=True
+
         
     def Raster_Vector_Cut(self, output_filename=None):
-        self.Prepare_for_laser_run("Raster Engraving: Processing Image and Vector Data.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Растровая гравировка: обработка изображений и векторных данных.")
+        self.master.update()
         try:
             self.make_raster_coords()
             if self.RengData.ecoords!=[] or self.VengData.ecoords!=[] or self.VcutData.ecoords!=[]:
                 self.send_data("Raster_Eng+Vector_Eng+Vector_Cut", output_filename)
             else:
                 self.statusbar.configure( bg = 'yellow' )
-                self.statusMessage.set("No data to engrave/cut")
+                self.statusMessage.set("Нет данных для гравировки/резки")
         except Exception as e:
-            msg1 = "Preparing Data Stopped: "
+            msg1 = "Подготовка данных остановлена: "
             msg2 = "%s" %(e)
             self.statusMessage.set((msg1+msg2).split("\n")[0] )
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
+        #self.set_gui("normal")
+        #self.stop[0]=True
         self.Finish_Job()
         
+        
     def Gcode_Cut(self, output_filename=None):
-        self.Prepare_for_laser_run("G Code Cutting.")
+        self.stop[0]=False
+        self.set_gui("disabled")
+        self.statusbar.configure( bg = 'green' )
+        self.statusMessage.set("Резка G Code.")
+        self.master.update()
         if self.GcodeData.ecoords!=[]:
             self.send_data("Gcode_Cut", output_filename)
         else:
             self.statusbar.configure( bg = 'yellow' )
-            self.statusMessage.set("No g-code data to cut")
+            self.statusMessage.set("Нет данных G Code для резки")
+        #self.set_gui("normal")
+        #self.stop[0]=True
         self.Finish_Job()
-
-    def Prepare_for_laser_run(self,msg):
-        self.stop[0]=False
-        self.move_head_window_temporary([0,0])
-        self.set_gui("disabled")
-        self.statusbar.configure( bg = 'green' )
-        self.statusMessage.set(msg)
-        self.master.update()
 
     def Finish_Job(self, event=None):
         self.set_gui("normal")
@@ -3024,19 +3037,18 @@ class Application(Frame):
         if self.post_exec.get():
             cmd = [self.batch_path.get()]
             from subprocess import Popen, PIPE
-            startupinfo=None
-            proc = Popen(cmd, shell=False, stdout=PIPE, stderr=PIPE, stdin=PIPE, startupinfo=startupinfo)
+            proc = Popen(cmd, shell=True, stdin=None, stdout=PIPE, stderr=PIPE)
             stdout,stderr = proc.communicate()
 
         if self.post_disp.get() or stderr != '':
             msg1 = ''
             minutes = floor(self.run_time / 60)
             seconds = self.run_time - minutes*60
-            msg2 = "Job Ended.\nRun Time = %02d:%02d" %(minutes,seconds)
+            msg2 = "Работа завершена.\nВремя выполнения = %02d:%02d" %(minutes,seconds)
             if stdout != '':
-                msg2=msg2+'\n\nBatch File Output:\n'+stdout
+                msg2=msg2+'\n\nПакетный файл вывода:\n'+stdout
             if stderr != '':
-                msg2=msg2+'\n\nBatch File Errors:\n'+stderr
+                msg2=msg2+'\n\nОшибки пакетного файла:\n'+stderr
             self.run_time = 0
             message_box(msg1, msg2)
 
@@ -3310,12 +3322,7 @@ class Application(Frame):
         for i in range(len(coords)):
             coords_rotate_mirror.append(coords[i][:])
             if self.mirror.get():
-                if self.inputCSYS.get() and self.RengData.image == None:
-                    coords_rotate_mirror[i][0]=-coords_rotate_mirror[i][0]
-                else:
-                    coords_rotate_mirror[i][0]=xmin+xmax-coords_rotate_mirror[i][0]
-                
-                
+                coords_rotate_mirror[i][0]=xmin+xmax-coords_rotate_mirror[i][0]
             if self.rotate.get():
                 x = coords_rotate_mirror[i][0]
                 y = coords_rotate_mirror[i][1]
@@ -3360,7 +3367,7 @@ class Application(Frame):
     def send_data(self,operation_type=None, output_filename=None):
         num_passes=0
         if self.k40 == None and output_filename == None:
-            self.statusMessage.set("Laser Cutter is not Initialized...")
+            self.statusMessage.set("Лазерный станок не инициализирован...")
             self.statusbar.configure( bg = 'red' ) 
             return
         try:
@@ -3370,13 +3377,14 @@ class Application(Frame):
                 xmin,xmax,ymin,ymax = 0.0,0.0,0.0,0.0
             else:
                 xmin,xmax,ymin,ymax = self.Get_Design_Bounds()
+                
+            self.move_head_window_temporary([0,0])
                         
             startx = xmin
             starty = ymax
 
             if self.HomeUR.get():
-                Xscale = float(self.LaserXscale.get())
-                FlipXoffset = Xscale*abs(xmax-xmin)
+                FlipXoffset = abs(xmax-xmin)
                 if self.rotate.get():
                     startx = -xmin
             else:
@@ -3395,7 +3403,7 @@ class Application(Frame):
                         
             if (operation_type.find("Vector_Cut") > -1) and  (self.VcutData.ecoords!=[]):
                 Feed_Rate = float(self.Vcut_feed.get())*feed_factor
-                self.statusMessage.set("Vector Cut: Determining Cut Order....")
+                self.statusMessage.set("Векторная резка: определение порядка резки....")
                 self.master.update()
                 if not self.VcutData.sorted and self.inside_first.get():
                     self.VcutData.set_ecoords(self.optimize_paths(self.VcutData.ecoords),data_sorted=True)
@@ -3423,7 +3431,7 @@ class Application(Frame):
 ##                    plt.plot(X,Y)
 
 
-                self.statusMessage.set("Generating EGV data...")
+                self.statusMessage.set("Создание данных EGV...")
                 self.master.update()
 
                 Vcut_coords = self.VcutData.ecoords
@@ -3448,11 +3456,11 @@ class Application(Frame):
 
             if (operation_type.find("Vector_Eng") > -1) and  (self.VengData.ecoords!=[]):
                 Feed_Rate = float(self.Veng_feed.get())*feed_factor
-                self.statusMessage.set("Vector Engrave: Determining Cut Order....")
+                self.statusMessage.set("Векторная гравировка: определение порядка резки....")
                 self.master.update()
                 if not self.VengData.sorted and self.inside_first.get():
                     self.VengData.set_ecoords(self.optimize_paths(self.VengData.ecoords,inside_check=False),data_sorted=True)
-                self.statusMessage.set("Generating EGV data...")
+                self.statusMessage.set("Создание данных EGV...")
                 self.master.update()
 
                 Veng_coords = self.VengData.ecoords
@@ -3479,7 +3487,7 @@ class Application(Frame):
             if (operation_type.find("Trace_Eng") > -1) and (self.trace_coords!=[]):
                 Feed_Rate = float(self.trace_speed.get())*feed_factor
                 laser_on = self.trace_w_laser.get()
-                self.statusMessage.set("Generating EGV data...")
+                self.statusMessage.set("Создание данных EGV...")
                 self.master.update()
                 Trace_Eng_egv_inst = egv(target=lambda s:Trace_Eng_data.append(s))
                 Trace_Eng_egv_inst.make_egv_data(
@@ -3511,7 +3519,7 @@ class Application(Frame):
                     Yscale = Yscale*Rscale
                 raster_starty = Yscale*starty
 
-                self.statusMessage.set("Generating EGV data...")
+                self.statusMessage.set("Создание данных EGV...")
                 self.master.update()
                 Raster_Eng_egv_inst = egv(target=lambda s:Raster_Eng_data.append(s))
                 Raster_Eng_egv_inst.make_egv_data(
@@ -3530,7 +3538,7 @@ class Application(Frame):
                 #self.RengData.reset_path()
 
             if (operation_type.find("Gcode_Cut") > -1) and (self.GcodeData.ecoords!=[]):
-                self.statusMessage.set("Generating EGV data...")
+                self.statusMessage.set("Создание данных EGV...")
                 self.master.update()
                 Gcode_coords = self.GcodeData.ecoords
                 if self.mirror.get() or self.rotate.get():
@@ -3586,7 +3594,7 @@ class Application(Frame):
                         data[-4]=ord("@")
                     data.extend(G_code_Cut_data)
             if len(data)< 4:
-                raise Exception("No laser data was generated.")    
+                raise Exception("Данные по лазеру не сгенерированы.")    
                 
             self.master.update()
             if output_filename != None:
@@ -3596,15 +3604,15 @@ class Application(Frame):
                 self.menu_View_Refresh()
                 
         except MemoryError as e:
-            msg1 = "Memory Error:"
-            msg2 = "Memory Error:  Out of Memory."
+            msg1 = "Ошибка памяти:"
+            msg2 = "Ошибка памяти:  Недостаточно памяти."
             self.statusMessage.set(msg2)
             self.statusbar.configure( bg = 'red' )
             message_box(msg1, msg2)
             debug_message(traceback.format_exc())
         
         except Exception as e:
-            msg1 = "Sending Data Stopped: "
+            msg1 = "Отправка данных остановлена: "
             msg2 = "%s" %(e)
             if msg2 == "":
                 formatted_lines = traceback.format_exc().splitlines()
@@ -3622,10 +3630,10 @@ class Application(Frame):
             self.k40.send_data(data,self.update_gui,self.stop,num_passes,pre_process_CRC, wait_for_laser=True)
             self.run_time = time()-time_start
             if DEBUG:
-                print(("Elapsed Time: %.6f" %(time()-time_start)))
+                print(("Пройденное время: %.6f" %(time()-time_start)))
             
         else:
-            self.statusMessage.set("Laser is not initialized.")
+            self.statusMessage.set("Лазер не инициализирован.")
             self.statusbar.configure( bg = 'yellow' )
             return
         self.menu_View_Refresh()
@@ -3634,13 +3642,13 @@ class Application(Frame):
     ##########################################################################
     def write_egv_to_file(self,data,fname):
         if len(data) == 0:
-            raise Exception("No data available to write to file.")
+            raise Exception("Нет данных для записи в файл.")
         try:
             fout = open(fname,'w')
         except:
-            raise Exception("Unable to open file ( %s ) for writing." %(fname))
-        fout.write("Document type : LHYMICRO-GL file\n")
-        fout.write("Creator-Software: K40 Whisperer\n")
+            raise Exception("Невозможно открыть файл ( %s ) для записи." %(fname))
+        fout.write("Тип документа : файл LHYMICRO-GL\n")
+        fout.write("Создатель-Программное обеспечение: K40 Whisperer\n")
         
         fout.write("\n")
         fout.write("%0%0%0%0%")
@@ -3651,11 +3659,9 @@ class Application(Frame):
         #fout.write("\n")
         fout.close
         self.menu_View_Refresh()
-        self.statusMessage.set("Data saved to: %s" %(fname))
+        self.statusMessage.set("Данные сохранены в: %s" %(fname))
         
     def Home(self, event=None):
-        if self.GUI_Disabled:
-            return
         if self.k40 != None:
             self.k40.home_position()
         self.laserX  = 0.0
@@ -3677,7 +3683,7 @@ class Application(Frame):
         if self.k40 != None:
             try:
                 self.k40.reset_usb()
-                self.statusMessage.set("USB Reset Succeeded")
+                self.statusMessage.set("Сброс USB выполнен успешно")
             except:
                 debug_message(traceback.format_exc())
                 pass
@@ -3685,17 +3691,11 @@ class Application(Frame):
     def Stop(self,event=None):
         if self.stop[0]==True:
             return
-        line1 = "Sending data to the laser from K40 Whisperer is currently Paused."
-        line2 = "Press \"OK\" to abort any jobs currently running."
-        line3 = "Press \"Cancel\" to resume."
-        if self.k40 != None:
-            self.k40.pause_un_pause()
-            
-        if message_ask_ok_cancel("Stop Laser Job.", "%s\n\n%s\n%s" %(line1,line2,line3)):
+        line1 = "Отправка данных на лазер из K40 Whisperer в настоящее время приостановлена."
+        line2 = "Нажмите \"ОК \", чтобы прервать выполнение любых текущих заданий."
+        line3 = "Нажмите \"Отмена \", чтобы продолжить."
+        if message_ask_ok_cancel("Остановить лазерную работу.", "%s\n\n%s\n%s" %(line1,line2,line3)):
             self.stop[0]=True
-        else:
-            if self.k40 != None:
-                self.k40.pause_un_pause()
 
     def Hide_Advanced(self,event=None):
         self.advanced.set(0)
@@ -3705,15 +3705,13 @@ class Application(Frame):
         if self.k40 != None:
             try:
                 self.k40.release_usb()
-                self.statusMessage.set("USB Release Succeeded")
+                self.statusMessage.set("Отключение USB выполнено успешно")
             except:
                 debug_message(traceback.format_exc())
                 pass
             self.k40=None
         
     def Initialize_Laser(self,event=None):
-        if self.GUI_Disabled:
-            return
         self.stop[0]=True
         self.Release_USB()
         self.k40=None
@@ -3726,32 +3724,31 @@ class Application(Frame):
                 self.Home()
             else:
                 self.Unlock()
-
+            
+        #except StandardError as e:
         except Exception as e:
             error_text = "%s" %(e)
             if "BACKEND" in error_text.upper():
-                error_text = error_text + " (libUSB driver not installed)"
-            self.statusMessage.set("USB Error: %s" %(error_text))
+                error_text = error_text + " (libUSB драйвер не установлен)"
+            self.statusMessage.set("Ошибка USB: %s" %(error_text))
             self.statusbar.configure( bg = 'red' )
             self.k40=None
             debug_message(traceback.format_exc())
 
         except:
-            self.statusMessage.set("Unknown USB Error")
+            self.statusMessage.set("Неизвестная ошибка USB")
             self.statusbar.configure( bg = 'red' )
             self.k40=None
             debug_message(traceback.format_exc())
             
     def Unlock(self,event=None):
-        if self.GUI_Disabled:
-            return
         if self.k40 != None:
             try:
                 self.k40.unlock_rail()
-                self.statusMessage.set("Rail Unlock Succeeded")
+                self.statusMessage.set("Разблокировка моторов выполнена успешно")
                 self.statusbar.configure( bg = 'white' )
             except:
-                self.statusMessage.set("Rail Unlock Failed.")
+                self.statusMessage.set("Не удалось разблокировать моторы.")
                 self.statusbar.configure( bg = 'red' )
                 debug_message(traceback.format_exc())
                 pass
@@ -3760,7 +3757,7 @@ class Application(Frame):
     ##########################################################################
             
     def menu_File_Quit(self):
-        if message_ask_ok_cancel("Exit", "Exiting...."):
+        if message_ask_ok_cancel("Выход", "Выход?"):
             self.Quit_Click(None)
 
     def Reset_RasterPath_and_Update_Time(self, varName=0, index=0, mode=0):
@@ -3819,7 +3816,7 @@ class Application(Frame):
         if self.HomeUR.get():
             X_display = -X_display
 
-        self.statusMessage.set(" Current Position: X=%.3f Y=%.3f    ( W X H )=( %.3f%s X %.3f%s ) "
+        self.statusMessage.set(" Текущая позиция: X=%.3f Y=%.3f    ( W X H )=( %.3f%s X %.3f%s ) "
                                 %(X_display,
                                   Y_display,
                                   W_display,
@@ -3852,18 +3849,21 @@ class Application(Frame):
         
 
     def menu_Help_About(self):
-        application="K40 Whisperer"
-        about = "%s Version %s\n\n" %(application,version)
-        about = about + "By Scorch.\n"
+        
+        about = "K40 Whisperer Версия %s\n\n" %(version)
+        about = about + "Создатель: Scorch.\n"
         about = about + "\163\143\157\162\143\150\100\163\143\157\162"
         about = about + "\143\150\167\157\162\153\163\056\143\157\155\n"
         about = about + "https://www.scorchworks.com/\n\n"
+        about = about + "Переводчик: __AG__.\n"
+        about = about + "ag@shalamovartem.ml\n"
+        about = about + "https://shalamovartem.ml/\n\n"
         try:
             python_version = "%d.%d.%d" %(sys.version_info.major,sys.version_info.minor,sys.version_info.micro)
         except:
             python_version = ""
         about = about + "Python "+python_version+" (%d bit)" %(struct.calcsize("P") * 8)
-        message_box("About %s" %(application),about)
+        message_box("О k40 Whisperer",about)
 
     def menu_Help_Web(self):
         webbrowser.open_new(r"https://www.scorchworks.com/K40whisperer/k40whisperer.html")
@@ -3872,34 +3872,22 @@ class Application(Frame):
         webbrowser.open_new(r"https://www.scorchworks.com/K40whisperer/k40w_manual.html")
 
     def KEY_F1(self, event):
-        if self.GUI_Disabled:
-            return
         self.menu_Help_About()
 
     def KEY_F2(self, event):
-        if self.GUI_Disabled:
-            return
         self.GEN_Settings_Window()
 
     def KEY_F3(self, event):
-        if self.GUI_Disabled:
-            return
         self.RASTER_Settings_Window()
 
     def KEY_F4(self, event):
-        if self.GUI_Disabled:
-            return
         self.ROTARY_Settings_Window()
         self.menu_View_Refresh()
 
     def KEY_F5(self, event):
-        if self.GUI_Disabled:
-            return
         self.menu_View_Refresh()
 
     def KEY_F6(self, event):
-        if self.GUI_Disabled:
-            return
         self.advanced.set(not self.advanced.get())
         self.menu_View_Refresh()
 
@@ -4698,8 +4686,6 @@ class Application(Frame):
     #                         Temporary Move Window                                #
     ################################################################################
     def move_head_window_temporary(self,new_pos_offset):
-        if self.GUI_Disabled:
-            return
         dx_inches = round(new_pos_offset[0]/1000.0,3)
         dy_inches = round(new_pos_offset[1]/1000.0,3)
         Xnew,Ynew = self.XY_in_bounds(dx_inches,dy_inches,no_size=True)
@@ -4733,8 +4719,14 @@ class Application(Frame):
         gen_settings.grab_set() # Use grab_set to prevent user input in the main window
         gen_settings.focus_set()
         gen_settings.resizable(0,0)
-        gen_settings.title('General Settings')
-        gen_settings.iconname("General Settings")
+        gen_settings.title('Общие настройки')
+        gen_settings.iconname("Общие настройки")
+
+        try:
+            gen_settings.iconbitmap(bitmap="@emblem64")
+        except:
+            debug_message(traceback.format_exc())
+            pass
 
         D_Yloc  = 6
         D_dY = 26
@@ -4749,19 +4741,19 @@ class Application(Frame):
 
         #Radio Button
         D_Yloc=D_Yloc+D_dY
-        self.Label_Units = Label(gen_settings,text="Units")
+        self.Label_Units = Label(gen_settings,text="Единицы измерения")
         self.Label_Units.place(x=xd_label_L, y=D_Yloc, width=113, height=21)
-        self.Radio_Units_IN = Radiobutton(gen_settings,text="inch", value="in",
+        self.Radio_Units_IN = Radiobutton(gen_settings,text="дюйм", value="in",
                                          width="100", anchor=W)
         self.Radio_Units_IN.place(x=w_label+22, y=D_Yloc, width=75, height=23)
         self.Radio_Units_IN.configure(variable=self.units, command=self.Entry_units_var_Callback )
-        self.Radio_Units_MM = Radiobutton(gen_settings,text="mm", value="mm",
+        self.Radio_Units_MM = Radiobutton(gen_settings,text="мм", value="mm",
                                          width="100", anchor=W)
         self.Radio_Units_MM.place(x=w_label+110, y=D_Yloc, width=75, height=23)
         self.Radio_Units_MM.configure(variable=self.units, command=self.Entry_units_var_Callback )
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_init_home = Label(gen_settings,text="Home Upon Initialize")
+        self.Label_init_home = Label(gen_settings,text="Домой при инициализации")
         self.Label_init_home.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_init_home = Checkbutton(gen_settings,text="", anchor=W)
         self.Checkbutton_init_home.place(x=xd_entry_L, y=D_Yloc, width=75, height=23)
@@ -4769,7 +4761,7 @@ class Application(Frame):
 
         
         D_Yloc=D_Yloc+D_dY
-        self.Label_post_home = Label(gen_settings,text="After Job Finishes:")
+        self.Label_post_home = Label(gen_settings,text="После завершения работы:")
         self.Label_post_home.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
 
         Xoption_width = 120
@@ -4777,20 +4769,20 @@ class Application(Frame):
         Xoption_col2  = xd_entry_L+Xoption_width
         Xoption_col3  = xd_entry_L+Xoption_width*2
         
-        self.Checkbutton_post_home = Checkbutton(gen_settings,text="Unlock Rail", anchor=W)
+        self.Checkbutton_post_home = Checkbutton(gen_settings,text="Отключение мот..", anchor=W)
         self.Checkbutton_post_home.place(x=Xoption_col1, y=D_Yloc, width=Xoption_width, height=23)
         self.Checkbutton_post_home.configure(variable=self.post_home)
 
-        self.Checkbutton_post_beep = Checkbutton(gen_settings,text="Beep", anchor=W)
+        self.Checkbutton_post_beep = Checkbutton(gen_settings,text="Звуковой сигнал", anchor=W)
         self.Checkbutton_post_beep.place(x=Xoption_col2, y=D_Yloc, width=Xoption_width, height=23)
         self.Checkbutton_post_beep.configure(variable=self.post_beep)
 
         D_Yloc=D_Yloc+D_dY
-        self.Checkbutton_post_disp = Checkbutton(gen_settings,text="Popup Report", anchor=W)
+        self.Checkbutton_post_disp = Checkbutton(gen_settings,text="Всплыв. отчет", anchor=W)
         self.Checkbutton_post_disp.place(x=Xoption_col1, y=D_Yloc, width=Xoption_width, height=23)
         self.Checkbutton_post_disp.configure(variable=self.post_disp)
 
-        self.Checkbutton_post_exec = Checkbutton(gen_settings,text="Run Batch File:", anchor=W, command=self.Set_Input_States_BATCH)
+        self.Checkbutton_post_exec = Checkbutton(gen_settings,text="Запуск файла:", anchor=W, command=self.Set_Input_States_BATCH)
         self.Checkbutton_post_exec.place(x=Xoption_col2, y=D_Yloc, width=Xoption_width, height=23)
         self.Checkbutton_post_exec.configure(variable=self.post_exec)
 
@@ -4801,7 +4793,7 @@ class Application(Frame):
         
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Preprocess_CRC = Label(gen_settings,text="Preprocess CRC Data")
+        self.Label_Preprocess_CRC = Label(gen_settings,text="Предв. обработка дан. CRC")
         self.Label_Preprocess_CRC.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_Preprocess_CRC = Checkbutton(gen_settings,text="", anchor=W)
         self.Checkbutton_Preprocess_CRC.place(x=xd_entry_L, y=D_Yloc, width=75, height=23)
@@ -4832,25 +4824,25 @@ class Application(Frame):
         self.gen_separator1.place(x=xd_label_L, y=D_Yloc,width=gen_width-40, height=2)
 
         D_Yloc=D_Yloc+D_dY*.25
-        self.Label_Inkscape_title = Label(gen_settings,text="Inkscape Options")
+        self.Label_Inkscape_title = Label(gen_settings,text="Настройки Inkscape")
         self.Label_Inkscape_title.place(x=xd_label_L, y=D_Yloc, width=gen_width-40, height=21)
         
         D_Yloc=D_Yloc+D_dY
         font_entry_width=215
-        self.Label_Inkscape_Path = Label(gen_settings,text="Inkscape Executable")
+        self.Label_Inkscape_Path = Label(gen_settings,text="Исполняемый Inkscape")
         self.Label_Inkscape_Path.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Entry_Inkscape_Path = Entry(gen_settings,width="15")
         self.Entry_Inkscape_Path.place(x=xd_entry_L, y=D_Yloc, width=font_entry_width, height=23)
         self.Entry_Inkscape_Path.configure(textvariable=self.inkscape_path)
         self.Entry_Inkscape_Path.bind('<FocusIn>', self.Inkscape_Path_Message)
-        self.Inkscape_Path = Button(gen_settings,text="Find Inkscape")
+        self.Inkscape_Path = Button(gen_settings,text="Найти Inkscape")
         self.Inkscape_Path.place(x=xd_entry_L+font_entry_width+10, y=D_Yloc, width=110, height=23)
         self.Inkscape_Path.bind("<ButtonRelease-1>", self.Inkscape_Path_Click)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Ink_Timeout = Label(gen_settings,text="Inkscape Timeout")
+        self.Label_Ink_Timeout = Label(gen_settings,text="Тайм-аут Inkscape")
         self.Label_Ink_Timeout.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
-        self.Label_Ink_Timeout_u = Label(gen_settings,text="minutes", anchor=W)
+        self.Label_Ink_Timeout_u = Label(gen_settings,text="минут", anchor=W)
         self.Label_Ink_Timeout_u.place(x=xd_units_L, y=D_Yloc, width=w_units*2, height=21)
         self.Entry_Ink_Timeout = Entry(gen_settings,width="15")
         self.Entry_Ink_Timeout.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
@@ -4863,7 +4855,7 @@ class Application(Frame):
         self.gen_separator2.place(x=xd_label_L, y=D_Yloc,width=gen_width-40, height=2)
 
         D_Yloc=D_Yloc+D_dY*.5
-        self.Label_no_com = Label(gen_settings,text="Home in Upper Right")
+        self.Label_no_com = Label(gen_settings,text="Дом в верх. правом углу")
         self.Label_no_com.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_no_com = Checkbutton(gen_settings,text="", anchor=W)
         self.Checkbutton_no_com.place(x=xd_entry_L, y=D_Yloc, width=75, height=23)
@@ -4871,7 +4863,7 @@ class Application(Frame):
         self.HomeUR.trace_variable("w",self.menu_View_Refresh_Callback)        
 
         D_Yloc=D_Yloc+D_dY 
-        self.Label_Board_Name      = Label(gen_settings,text="Board Name", anchor=CENTER )
+        self.Label_Board_Name      = Label(gen_settings,text="Имя платы", anchor=CENTER )
         self.Board_Name_OptionMenu = OptionMenu(gen_settings, self.board_name,
                                             "LASER-M2",
                                             "LASER-M1",
@@ -4884,7 +4876,7 @@ class Application(Frame):
         self.Board_Name_OptionMenu.place(x=xd_entry_L, y=D_Yloc, width=w_entry*3, height=23)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_Area_Width = Label(gen_settings,text="Laser Area Width")
+        self.Label_Laser_Area_Width = Label(gen_settings,text="Ширина лазерной области")
         self.Label_Laser_Area_Width.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Label_Laser_Area_Width_u = Label(gen_settings,textvariable=self.units, anchor=W)
         self.Label_Laser_Area_Width_u.place(x=xd_units_L, y=D_Yloc, width=w_units, height=21)
@@ -4895,7 +4887,7 @@ class Application(Frame):
         self.entry_set(self.Entry_Laser_Area_Width,self.Entry_Laser_Area_Width_Check(),2)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_Area_Height = Label(gen_settings,text="Laser Area Height")
+        self.Label_Laser_Area_Height = Label(gen_settings,text="Высота лазерной области")
         self.Label_Laser_Area_Height.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Label_Laser_Area_Height_u = Label(gen_settings,textvariable=self.units, anchor=W)
         self.Label_Laser_Area_Height_u.place(x=xd_units_L, y=D_Yloc, width=w_units, height=21)
@@ -4906,7 +4898,7 @@ class Application(Frame):
         self.entry_set(self.Entry_Laser_Area_Height,self.Entry_Laser_Area_Height_Check(),2)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_X_Scale = Label(gen_settings,text="X Scale Factor")
+        self.Label_Laser_X_Scale = Label(gen_settings,text="X масштабный коэфф.")
         self.Label_Laser_X_Scale.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Entry_Laser_X_Scale = Entry(gen_settings,width="15")
         self.Entry_Laser_X_Scale.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
@@ -4915,7 +4907,7 @@ class Application(Frame):
         self.entry_set(self.Entry_Laser_X_Scale,self.Entry_Laser_X_Scale_Check(),2)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_Y_Scale = Label(gen_settings,text="Y Scale Factor")
+        self.Label_Laser_Y_Scale = Label(gen_settings,text="Y масштабный коэфф.")
         self.Label_Laser_Y_Scale.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Entry_Laser_Y_Scale = Entry(gen_settings,width="15")
         self.Entry_Laser_Y_Scale.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
@@ -4924,10 +4916,10 @@ class Application(Frame):
         self.entry_set(self.Entry_Laser_Y_Scale,self.Entry_Laser_Y_Scale_Check(),2)
                 
         D_Yloc=D_Yloc+D_dY+10
-        self.Label_SaveConfig = Label(gen_settings,text="Configuration File")
+        self.Label_SaveConfig = Label(gen_settings,text="Конфигурационный файл")
         self.Label_SaveConfig.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
 
-        self.GEN_SaveConfig = Button(gen_settings,text="Save")
+        self.GEN_SaveConfig = Button(gen_settings,text="Сохр.")
         self.GEN_SaveConfig.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=21, anchor="nw")
         self.GEN_SaveConfig.bind("<ButtonRelease-1>", self.Write_Config_File)
         
@@ -4936,7 +4928,7 @@ class Application(Frame):
         Ybut=int(gen_settings.winfo_height())-30
         Xbut=int(gen_settings.winfo_width()/2)
 
-        self.GEN_Close = Button(gen_settings,text="Close")
+        self.GEN_Close = Button(gen_settings,text="Закрыть")
         self.GEN_Close.place(x=Xbut, y=Ybut, width=130, height=30, anchor="center")
         self.GEN_Close.bind("<ButtonRelease-1>", self.Close_Current_Window_Click)
 
@@ -4952,8 +4944,14 @@ class Application(Frame):
         raster_settings.grab_set() # Use grab_set to prevent user input in the main window
         raster_settings.focus_set()
         raster_settings.resizable(0,0)
-        raster_settings.title('Raster Settings')
-        raster_settings.iconname("Raster Settings")
+        raster_settings.title('Растровые настроки')
+        raster_settings.iconname("Растровые настроки")
+
+        try:
+            raster_settings.iconbitmap(bitmap="@emblem64")
+        except:
+            debug_message(traceback.format_exc())
+            pass
 
         D_Yloc  = 6
         D_dY = 24
@@ -4965,8 +4963,10 @@ class Application(Frame):
         xd_entry_L=xd_label_L+w_label+10
         xd_units_L=xd_entry_L+w_entry+5
 
+
+
         D_Yloc=D_Yloc+D_dY
-        self.Label_Rstep   = Label(raster_settings,text="Scanline Step", anchor=CENTER )
+        self.Label_Rstep   = Label(raster_settings,text="Шаг строки сканирования", anchor=CENTER )
         self.Label_Rstep.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Label_Rstep_u = Label(raster_settings,text="in", anchor=W)
         self.Label_Rstep_u.place(x=xd_units_L, y=D_Yloc, width=w_units, height=21)
@@ -4976,14 +4976,14 @@ class Application(Frame):
         self.rast_step.trace_variable("w", self.Entry_Rstep_Callback)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_EngraveUP = Label(raster_settings,text="Engrave Bottom Up")
+        self.Label_EngraveUP = Label(raster_settings,text="Гравировать снизу вверх")
         self.Checkbutton_EngraveUP = Checkbutton(raster_settings,text=" ", anchor=W)
         self.Checkbutton_EngraveUP.configure(variable=self.engraveUP)
         self.Label_EngraveUP.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_EngraveUP.place(x=w_label+22, y=D_Yloc, width=75, height=23)
         
         D_Yloc=D_Yloc+D_dY
-        self.Label_Halftone = Label(raster_settings,text="Halftone (Dither)")
+        self.Label_Halftone = Label(raster_settings,text="Полутона (дизеринг)")
         self.Label_Halftone.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_Halftone = Checkbutton(raster_settings,text=" ", anchor=W, command=self.Set_Input_States_RASTER)
         self.Checkbutton_Halftone.place(x=w_label+22, y=D_Yloc, width=75, height=23)
@@ -4992,7 +4992,7 @@ class Application(Frame):
 
         ############
         D_Yloc=D_Yloc+D_dY 
-        self.Label_Halftone_DPI      = Label(raster_settings,text="Halftone Resolution", anchor=CENTER )
+        self.Label_Halftone_DPI      = Label(raster_settings,text="Полутоновое разрешение", anchor=CENTER )
         self.Halftone_DPI_OptionMenu = OptionMenu(raster_settings, self.ht_size,
                                             "1000",
                                             "500",
@@ -5012,7 +5012,7 @@ class Application(Frame):
         ############
         D_Yloc=D_Yloc+D_dY+5
         self.Label_bezier_M1  = Label(raster_settings,
-                                text="Slope, Black (%.1f)"%(self.bezier_M1_default),
+                                text="Склон, черный (%.1f)"%(self.bezier_M1_default),
                                 anchor=CENTER )
         self.bezier_M1_Slider = Scale(raster_settings, from_=1, to=50, resolution=0.1, \
                                 orient=HORIZONTAL, variable=self.bezier_M1)
@@ -5023,7 +5023,7 @@ class Application(Frame):
         
         D_Yloc=D_Yloc+D_dY-8
         self.Label_bezier_M2  = Label(raster_settings,
-                                text="Slope, White (%.2f)"%(self.bezier_M2_default),
+                                text="Склон, белый (%.2f)"%(self.bezier_M2_default),
                                 anchor=CENTER )
         self.bezier_M2_Slider = Scale(raster_settings, from_=0.0, to=1, \
                                 orient=HORIZONTAL,resolution=0.01, variable=self.bezier_M2)
@@ -5034,7 +5034,7 @@ class Application(Frame):
 
         D_Yloc=D_Yloc+D_dY-8
         self.Label_bezier_weight   = Label(raster_settings,
-                                     text="Transition (%.1f)"%(self.bezier_M1_default),
+                                     text="Переход (%.1f)"%(self.bezier_M1_default),
                                      anchor=CENTER )
         self.bezier_weight_Slider = Scale(raster_settings, from_=0, to=10, resolution=0.1, \
                                     orient=HORIZONTAL, variable=self.bezier_weight)
@@ -5106,7 +5106,7 @@ class Application(Frame):
         Ybut=int(raster_settings.winfo_height())-30
         Xbut=int(raster_settings.winfo_width()/2)
 
-        self.RASTER_Close = Button(raster_settings,text="Close")
+        self.RASTER_Close = Button(raster_settings,text="Закрыть")
         self.RASTER_Close.place(x=Xbut, y=Ybut, width=130, height=30, anchor="center")
         self.RASTER_Close.bind("<ButtonRelease-1>", self.Close_Current_Window_Click)
 
@@ -5124,8 +5124,14 @@ class Application(Frame):
         rotary_settings.grab_set() # Use grab_set to prevent user input in the main window
         rotary_settings.focus_set()
         rotary_settings.resizable(0,0)
-        rotary_settings.title('Rotary Settings')
-        rotary_settings.iconname("Rotary Settings")
+        rotary_settings.title('Поворотные настройки')
+        rotary_settings.iconname("Поворотные настройки")
+
+        try:
+            rotary_settings.iconbitmap(bitmap="@emblem64")
+        except:
+            debug_message(traceback.format_exc())
+            pass
 
         D_Yloc  = 6
         D_dY = 30
@@ -5140,14 +5146,14 @@ class Application(Frame):
         
 
         D_Yloc=D_Yloc+D_dY-15
-        self.Label_Rotary_Enable = Label(rotary_settings,text="Use Rotary Settings")
+        self.Label_Rotary_Enable = Label(rotary_settings,text="Исп. поворотные настройки")
         self.Label_Rotary_Enable.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_Rotary_Enable = Checkbutton(rotary_settings,text="", anchor=W, command=self.Set_Input_States_Rotary)
         self.Checkbutton_Rotary_Enable.place(x=xd_entry_L, y=D_Yloc, width=75, height=23)
         self.Checkbutton_Rotary_Enable.configure(variable=self.rotary)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_R_Scale = Label(rotary_settings,text="Rotary Scale Factor (Y axis)")
+        self.Label_Laser_R_Scale = Label(rotary_settings,text="Пов. масшта. коэфф. (ось Y)")
         self.Label_Laser_R_Scale.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Entry_Laser_R_Scale = Entry(rotary_settings,width="15")
         self.Entry_Laser_R_Scale.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
@@ -5156,7 +5162,7 @@ class Application(Frame):
         self.entry_set(self.Entry_Laser_R_Scale,self.Entry_Laser_R_Scale_Check(),2)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_Rapid_Feed = Label(rotary_settings,text="Rapid Speed (default=0)")
+        self.Label_Laser_Rapid_Feed = Label(rotary_settings,text="Быстрая скорость (по умол. = 0)")
         self.Label_Laser_Rapid_Feed.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Label_Laser_Rapid_Feed_u = Label(rotary_settings,textvariable=self.funits, anchor=W)
         self.Label_Laser_Rapid_Feed_u.place(x=xd_units_L, y=D_Yloc, width=w_units, height=21)
@@ -5171,7 +5177,7 @@ class Application(Frame):
         Ybut=int(rotary_settings.winfo_height())-30
         Xbut=int(rotary_settings.winfo_width()/2)
 
-        self.GEN_Close = Button(rotary_settings,text="Close")
+        self.GEN_Close = Button(rotary_settings,text="Закрыть")
         self.GEN_Close.place(x=Xbut, y=Ybut, width=130, height=30, anchor="center")
         self.GEN_Close.bind("<ButtonRelease-1>", self.Close_Current_Window_Click)
 
@@ -5181,15 +5187,18 @@ class Application(Frame):
     #                            Trace Send Window                                 #
     ################################################################################
 
-    def TRACE_Settings_Window(self, dummy=None):
-        if self.GUI_Disabled:
-            return
+    def TRACE_Settings_Window(self, dummy=None):        
         trace_window = Toplevel(width=350, height=180)
         self.trace_window=trace_window
         trace_window.grab_set() # Use grab_set to prevent user input in the main window during calculations
         trace_window.resizable(0,0)
-        trace_window.title('Trace Boundary')
-        trace_window.iconname("Trace Boundary")
+        trace_window.title('Граница трассировки')
+        trace_window.iconname("Граница трассировки")
+        try:
+            trace_window.iconbitmap(bitmap="@emblem64")
+        except:
+            debug_message(traceback.format_exc())
+            pass
 
         def Close_Click():
             win_id=self.grab_current()
@@ -5213,14 +5222,14 @@ class Application(Frame):
         xd_units_L=xd_entry_L+w_entry+5
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Laser_Trace = Label(trace_window,text="Laser 'On' During Trace")
+        self.Label_Laser_Trace = Label(trace_window,text="Лазер включен во время трассировки")
         self.Label_Laser_Trace.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_Laser_Trace = Checkbutton(trace_window,text="", anchor=W)
         self.Checkbutton_Laser_Trace.place(x=xd_entry_L, y=D_Yloc, width=75, height=23)
         self.Checkbutton_Laser_Trace.configure(variable=self.trace_w_laser)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Trace_Gap = Label(trace_window,text="Gap Between Design and Trace")
+        self.Label_Trace_Gap = Label(trace_window,text="Разрыв между дизайном и трассировкой")
         self.Label_Trace_Gap.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Entry_Trace_Gap = Entry(trace_window,width="15")
         self.Entry_Trace_Gap.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
@@ -5235,7 +5244,7 @@ class Application(Frame):
             self.Entry_Trace_Gap.configure(state="disabled")
             
         D_Yloc=D_Yloc+D_dY
-        self.Trace_Button = Button(trace_window,text="Trace Boundary With Laser Head",command=Close_and_Send_Click)
+        self.Trace_Button = Button(trace_window,text="Граница чертежа с помощью лазера",command=Close_and_Send_Click)
         self.Trace_Button.place(x=xd_label_L, y=D_Yloc, width=w_label, height=23)
         
         self.Entry_Trace_Speed = Entry(trace_window,width="15")
@@ -5253,7 +5262,7 @@ class Application(Frame):
         Ybut=int(trace_window.winfo_height())-30
         Xbut=int(trace_window.winfo_width()/2)
 
-        self.Trace_Close = Button(trace_window,text="Cancel",command=Close_Click)
+        self.Trace_Close = Button(trace_window,text="Отмена",command=Close_Click)
         self.Trace_Close.place(x=Xbut, y=Ybut, width=130, height=30, anchor="center")
         ################################################################################
 
@@ -5265,8 +5274,13 @@ class Application(Frame):
         egv_send = Toplevel(width=400, height=180)
         egv_send.grab_set() # Use grab_set to prevent user input in the main window during calculations
         egv_send.resizable(0,0)
-        egv_send.title('EGV Send')
-        egv_send.iconname("EGV Send")
+        egv_send.title('EGV отправить')
+        egv_send.iconname("EGV отправить")
+        try:
+            egv_send.iconbitmap(bitmap="@emblem64")
+        except:
+            debug_message(traceback.format_exc())
+            pass
 
         D_Yloc  = 0
         D_dY = 28
@@ -5279,14 +5293,14 @@ class Application(Frame):
         xd_units_L=xd_entry_L+w_entry+5
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_Preprocess_CRC = Label(egv_send,text="Preprocess CRC Data")
+        self.Label_Preprocess_CRC = Label(egv_send,text="Предварительная обработка данных CRC")
         self.Label_Preprocess_CRC.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Checkbutton_Preprocess_CRC = Checkbutton(egv_send,text="", anchor=W)
         self.Checkbutton_Preprocess_CRC.place(x=xd_entry_L, y=D_Yloc, width=75, height=23)
         self.Checkbutton_Preprocess_CRC.configure(variable=self.pre_pr_crc)
 
         D_Yloc=D_Yloc+D_dY
-        self.Label_N_EGV_Passes = Label(egv_send,text="Number of EGV Passes")
+        self.Label_N_EGV_Passes = Label(egv_send,text="Количество проходов EGV")
         self.Label_N_EGV_Passes.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.Entry_N_EGV_Passes = Entry(egv_send,width="15")
         self.Entry_N_EGV_Passes.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
@@ -5296,7 +5310,7 @@ class Application(Frame):
 
         D_Yloc=D_Yloc+D_dY
         font_entry_width=215
-        self.Label_Inkscape_Path = Label(egv_send,text="EGV File:")
+        self.Label_Inkscape_Path = Label(egv_send,text="EGV файл:")
         self.Label_Inkscape_Path.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
 
         EGV_Name = os.path.basename(EGV_filename)
@@ -5308,7 +5322,7 @@ class Application(Frame):
         Ybut=int(egv_send.winfo_height())-30
         Xbut=int(egv_send.winfo_width()/2)
 
-        self.EGV_Close = Button(egv_send,text="Cancel")
+        self.EGV_Close = Button(egv_send,text="Отмена")
         self.EGV_Close.place(x=Xbut, y=Ybut, width=130, height=30, anchor="e")
         self.EGV_Close.bind("<ButtonRelease-1>", self.Close_Current_Window_Click)
 
@@ -5317,7 +5331,7 @@ class Application(Frame):
             win_id.destroy()
             self.Open_EGV(EGV_filename, n_passes=int( float(self.n_egv_passes.get()) ))
             
-        self.EGV_Send = Button(egv_send,text="Send EGV Data",command=Close_and_Send_Click)
+        self.EGV_Send = Button(egv_send,text="Отправить данные EGV",command=Close_and_Send_Click)
         self.EGV_Send.place(x=Xbut, y=Ybut, width=130, height=30, anchor="w")
         ################################################################################
         
@@ -5371,7 +5385,7 @@ def message_ask_ok_cancel(title, mess):
 ################################################################################
 def debug_message(message):
     global DEBUG
-    title = "Debug Message"
+    title = "Сообщение отладки"
     if DEBUG:
         if VERSION == 3:
             tkinter.messagebox.showinfo(title,message)
@@ -5390,16 +5404,21 @@ else:
 class UnitsDialog(tkSimpleDialog.Dialog):
     def body(self, master):
         self.resizable(0,0)
-        self.title('Units')
-        self.iconname("Units")
+        self.title('Единицы измерения')
+        self.iconname("Единицы измерения")
+
+        try:
+            self.iconbitmap(bitmap="@emblem64")
+        except:
+            pass
         
         self.uom = StringVar()
-        self.uom.set("Millimeters")
+        self.uom.set("Миллиметры")
 
-        Label(master, text="Select DXF Import Units:").grid(row=0)
-        Radio_Units_IN = Radiobutton(master,text="Inches",        value="Inches")
-        Radio_Units_MM = Radiobutton(master,text="Millimeters",   value="Millimeters")
-        Radio_Units_CM = Radiobutton(master,text="Centimeters",   value="Centimeters")
+        Label(master, text="Выберите единицы импорта DXF:").grid(row=0)
+        Radio_Units_IN = Radiobutton(master,text="Дюймы",        value="Дюймы")
+        Radio_Units_MM = Radiobutton(master,text="Миллиметры",   value="Миллиметры")
+        Radio_Units_CM = Radiobutton(master,text="Сантиметры",   value="Сантиметры")
         
         Radio_Units_IN.grid(row=1, sticky=W)
         Radio_Units_MM.grid(row=2, sticky=W)
@@ -5495,8 +5514,12 @@ class pxpiDialog(tkSimpleDialog.Dialog):
 
     def body(self, master):
         self.resizable(0,0)
-        self.title('SVG Import Scale:')
-        self.iconname("SVG Scale")
+        self.title('Размер импорта SVG:')
+        self.iconname("РазмерSVG")
+        try:
+            self.iconbitmap(bitmap="@emblem64")
+        except:
+            pass
         
         ###########################################################################
         def Entry_custom_Check():
@@ -5519,7 +5542,7 @@ class pxpiDialog(tkSimpleDialog.Dialog):
                     pass
                 else:
                     Set_Value(width=width*self.scale,height=height*self.scale)
-                self.svg_pxpi.set("custom")
+                self.svg_pxpi.set("свой")
         ###################################################
         def Entry_Width_Check():
             try:
@@ -5538,7 +5561,7 @@ class pxpiDialog(tkSimpleDialog.Dialog):
                 pxpi = self.width_pixels*25.4/width
                 height = self.height_pixels/pxpi*25.4
                 Set_Value(other=pxpi,height=height*self.scale)
-                self.svg_pxpi.set("custom")
+                self.svg_pxpi.set("свой")
         ###################################################
         def Entry_Height_Check():
             try:
@@ -5557,10 +5580,10 @@ class pxpiDialog(tkSimpleDialog.Dialog):
                 pxpi = self.height_pixels*25.4/height
                 width = self.width_pixels/pxpi*25.4
                 Set_Value(other=pxpi,width=width*self.scale)
-                self.svg_pxpi.set("custom")
+                self.svg_pxpi.set("свой")
         ###################################################       
         def SVG_pxpi_callback(varName, index, mode):
-            if self.svg_pxpi.get() == "custom":
+            if self.svg_pxpi.get() == "свой":
                 try:
                     pxpi=float(self.other.get())
                 except:
@@ -5597,38 +5620,38 @@ class pxpiDialog(tkSimpleDialog.Dialog):
             self.update_idletasks()
             
         ###########################################################################
-        t0="This dialog opens if the SVG file you are opening\n"
-        t1="does not contain enough information to determine\n"
-        t2="the intended physical size of the design.\n"
-        t3="Select an SVG Import Scale:\n"
+        t0="Это диалоговое окно открывается, если открываемый файл SVG\n"
+        t1="не содержит достаточно информации, чтобы определить\n"
+        t2="предполагаемый физический размер конструкции.\n"
+        t3="Выберите масштаб импорта SVG:\n"
         Title_Text0 = Label(master, text=t0+t1+t2, anchor=W)
         Title_Text1 = Label(master, text=t3, anchor=W)
         
-        Radio_SVG_pxpi_96   = Radiobutton(master,text=" 96 units/in", value="96")
-        Label_SVG_pxpi_96   = Label(master,text="(File saved with Inkscape v0.92 or newer)", anchor=W)
+        Radio_SVG_pxpi_96   = Radiobutton(master,text=" 96 px/in", value="96")
+        Label_SVG_pxpi_96   = Label(master,text="(Файл сохранен с помощью Inkscape v0.92 или новее)", anchor=W)
         
-        Radio_SVG_pxpi_90   = Radiobutton(master,text=" 90 units/in", value="90")
-        Label_SVG_pxpi_90   = Label(master,text="(File saved with Inkscape v0.91 or older)", anchor=W)
+        Radio_SVG_pxpi_90   = Radiobutton(master,text=" 90 px/in", value="90")
+        Label_SVG_pxpi_90   = Label(master,text="(Файл сохранен с помощью Inkscape v0.91 или более ранней версии)", anchor=W)
         
-        Radio_SVG_pxpi_72   = Radiobutton(master,text=" 72 units/in", value="72")
-        Label_SVG_pxpi_72   = Label(master,text="(File saved with Adobe Illustrator)", anchor=W)
+        Radio_SVG_pxpi_72   = Radiobutton(master,text=" 72 px/in", value="72")
+        Label_SVG_pxpi_72   = Label(master,text="(Файл сохранен с помощью Adobe Illustrator)", anchor=W)
 
-        Radio_Res_Custom = Radiobutton(master,text=" Custom:", value="custom")
+        Radio_Res_Custom = Radiobutton(master,text=" Свои:", value="custom")
         Bottom_row       = Label(master, text=" ")
         
 
         Entry_Custom_pxpi   = Entry(master,width="10")
         Entry_Custom_pxpi.configure(textvariable=self.other)
-        Label_pxpi_units =  Label(master,text="units/in", anchor=W)
+        Label_pxpi_units =  Label(master,text="px/in", anchor=W)
         self.trace_id_pxpi = self.other.trace_variable("w", Entry_custom_Callback)
 
-        Label_Width =  Label(master,text="Width", anchor=W)
+        Label_Width =  Label(master,text="Ширина", anchor=W)
         Entry_Custom_Width   = Entry(master,width="10")
         Entry_Custom_Width.configure(textvariable=self.svg_width)
         Label_Width_units =  Label(master,textvariable=self.svg_units, anchor=W)
         self.trace_id_width = self.svg_width.trace_variable("w", Entry_Width_Callback)
 
-        Label_Height =  Label(master,text="Height", anchor=W)
+        Label_Height =  Label(master,text="Высота", anchor=W)
         Entry_Custom_Height   = Entry(master,width="10")
         Entry_Custom_Height.configure(textvariable=self.svg_height)
         Label_Height_units =  Label(master,textvariable=self.svg_units, anchor=W)
@@ -5688,7 +5711,7 @@ class pxpiDialog(tkSimpleDialog.Dialog):
         viewbox = [self.minx_pixels, self.miny_pixels, width/25.4*pxpi, height/25.4*pxpi]
         self.result = pxpi,viewbox
         return 
-        
+            
 ################################################################################
 #                          Startup Application                                 #
 ################################################################################
@@ -5699,81 +5722,39 @@ app.master.title(title_text)
 app.master.iconname("K40")
 app.master.minsize(800,560)
 app.master.geometry("800x560")
-try:
-    try:
-        import tkFont
-        default_font = tkFont.nametofont("TkDefaultFont")
-    except:
-        import tkinter.font
-        default_font = tkinter.font.nametofont("TkDefaultFont")
-
-    default_font.configure(size=9)
-    default_font.configure(family='arial')
-    #print(default_font.cget("size"))
-    #print(default_font.cget("family"))
-except:
-    debug_message("Font Set Failed.")
-
-################################## Set Icon  ########################################
-Icon_Set=False
 
 try:
-    debug_message("Icon set %s" %(sys.argv[0]))
-    root.iconbitmap(default="emblem")
-    debug_message("Icon set worked %s" %(sys.argv[0]))
-    Icon_Set=True
-except:
-    debug_message(traceback.format_exc())
-    Icon_Set=False
-        
-if not Icon_Set:
     try:
-        scorch_ico_B64=b'R0lGODlhEAAQAIYAAA\
-        AAABAQEBYWFhcXFxsbGyUlJSYmJikpKSwsLC4uLi8vLzExMTMzMzc3Nzg4ODk5OTs7Oz4+PkJCQkRERE\
-        VFRUtLS0xMTE5OTlNTU1dXV1xcXGBgYGVlZWhoaGtra3FxcXR0dHh4eICAgISEhI+Pj5mZmZ2dnaKioq\
-        Ojo62tra6urrS0tLi4uLm5ub29vcLCwsbGxsjIyMzMzM/Pz9PT09XV1dbW1tjY2Nzc3OHh4eLi4uXl5e\
-        fn5+jo6Ovr6+/v7/Hx8fLy8vT09PX19fn5+fv7+/z8/P7+/v///wAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEKAEkALAAAAAAQABAAQAj/AJMIFBhBQYAACRIkWbgwAA\
-        4kEFEECACAxBAkGH8ESEKgBZIiAIQECBAjAA8kNwIkScKgQhAkRggAIJACCZIaJxgk2clgAY4OAAoEAO\
-        ABCIIDSZIwkIHEBw0YFAAA6IGDCBIkLAhMyICka9cAKZCIRTLEBIMkaA0MSNGjSBEVIgpESEK3LgMCI1\
-        aAWCFDA4EDSQInwaDACBEAImLwCAFARw4HFJJcgGADyZEAL3YQcMGBBpIjHx4EeIGkRoMFJgakWADABx\
-        IkPwIgcIGkdm0AMJDo1g3jQBIBRZAINyKAwxEkyHEUSMIcwYYbEgwYmQGgyI8SD5Jo327hgIIAAQ5cBs\
-        CQpHySgAA7'
-        icon_im =PhotoImage(data=scorch_ico_B64, format='gif')
-        root.call('wm', 'iconphoto', root._w, '-default', icon_im)
+        app.master.iconbitmap(r'emblem')
     except:
-        pass
-#####################################################################################
-
+        app.master.iconbitmap(bitmap="@emblem64")
+except:
+    pass
 
 if LOAD_MSG != "":
     message_box("K40 Whisperer",LOAD_MSG)
+debug_message("Отладка включена.")
+
 
 opts, args = None, None
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "hpd",["help", "pi", "debug"])
+    opts, args = getopt.getopt(sys.argv[1:], "hp",["help", "pi"])
 except:
-    print('Unable interpret command line options')
+    print('Невозможно интерпретировать параметры командной строки')
     sys.exit()
 
 for option, value in opts:
     if option in ('-h','--help'):
+        pass
         print(' ')
-        print('Usage: python k40_whisperer.py [-h -p]')
-        print('-h    : print this help (also --help)')
-        print('-p    : Small screen option (for small raspberry pi display) (also --pi)')
+        print('Использование: python k40_whisperer.py [-h -p]')
+        print('-h    : распечатать эту справку (также --help)')
+        print('-p    : Вариант маленького экрана (для маленького дисплея raspberry pi) (также --pi)')
         sys.exit()
     elif option in ('-p','--pi'):
         print("pi mode")
         app.master.minsize(480,320)
         app.master.geometry("480x320")
-    elif option in ('-d','--debug'):
-        DEBUG=True
 
-if DEBUG:
-    import inspect
-debug_message("Debuging is turned on.")
-    
+
 root.mainloop()
